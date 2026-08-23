@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Mayscar Rally Operasyon V7</title>
+<title>Mayscar Rally Operasyon V8</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--bg:#f5f6f8;--card:#fff;--text:#171717;--muted:#6b7280;--line:#dfe3e8;--dark:#111827;--green:#0b7a3b;--red:#b42318;--amber:#a15c00;--blue:#175cd3;--soft:#f2f4f7}
@@ -43,7 +43,7 @@ button,input,select,textarea{font:inherit}.hidden{display:none!important}.app{ma
 
 <div class="app">
   <div class="top">
-    <div class="brand"><h1>Mayscar Rally Operasyon V7</h1><p>Araç kartları • operasyon • 3 sürücü • maliyet • teslim/iade • ortak veritabanına hazır</p></div>
+    <div class="brand"><h1>Mayscar Rally Operasyon V8</h1><p>Araç kartları • operasyon • 3 sürücü • maliyet • teslim/iade • ortak veritabanına hazır</p></div>
     <div class="userbar"><span id="storageBadge" class="badge local">Yerel Mod</span><span id="userBadge" class="badge role">-</span><button class="secondary" onclick="logout()">Çıkış</button></div>
   </div>
 
@@ -218,7 +218,9 @@ async function getOps(){
         discount:Number(x.discount)||0, discountCurrency:x.discount_currency||x.currency||'EUR',
         payments:Array.isArray(x.payments)?x.payments:[],
         depositStatus:x.deposit_status||'Alınmadı',
-        damageOut:x.damage_notes||'', notes:x.operation_notes||'', updatedAt:x.updated_at
+        damageOut:x.damage_notes||'', notes:x.operation_notes||'', updatedAt:x.updated_at,
+        driver1:x.driver1_name||'', driver2:x.driver2_name||'', driver3:x.driver3_name||'',
+        pickup:x.pickup_location||'', dropoff:x.return_location||'', wrapNeeded:!!x.wrap_required
       }));
       return opCache
     }
@@ -340,8 +342,47 @@ function newOperation(){editingOp=null;$('operationForm').reset();$('staff').val
 function openOperation(id){const d=opCache.find(x=>x.id===id);if(!d)return;editingOp=id;OP_FIELDS.forEach(k=>{const e=$(k);if(!e)return;if(e.type==='checkbox')e.checked=!!d[k];else e.value=d[k]??''});$('staff').value=currentUser;$('paymentsList').innerHTML='';(d.payments||[]).forEach(addPaymentRow);if(!(d.payments||[]).length)addPaymentRow();$('deleteOpBtn').classList.remove('hidden');refreshMoney();showView('operation');window.scrollTo({top:0,behavior:'smooth'})}
 async function deleteOperation(){if(!editingOp||!confirm('Bu operasyon kaydı silinsin mi?'))return;try{await deleteOpData(editingOp);newOperation();await refreshAll();showView('list')}catch(e){alert(e.message)}}
 function statusDot(s){return ['Tamamlandı','İade Alındı'].includes(s)?'st-green':['İptal'].includes(s)?'st-red':'st-amber'}
-function renderDashboard(){const all=opCache;$('kAll').textContent=all.length;$('kDemand').textContent=all.filter(x=>['Talep Var','Netleşecek'].includes(x.status)).length;$('kPrep').textContent=all.filter(x=>['Onaylandı','Araç Hazırlanıyor','Kaplamada','Teslime Hazır'].includes(x.status)).length;$('kOut').textContent=all.filter(x=>x.status==='Teslim Edildi').length;$('kDone').textContent=all.filter(x=>['İade Alındı','Tamamlandı'].includes(x.status)).length;$('kVehicles').textContent=vehicleCache.length;$('dashBody').innerHTML=all.slice(0,30).map(d=>`<tr><td><strong>${esc(d.operationNo)}</strong></td><td><span class="statusdot ${statusDot(d.status)}"></span>${esc(d.status)}</td><td>${esc([d.brand,d.model,d.year].filter(Boolean).join(' '))}</td><td>${esc(d.plate||'-')}</td><td>${fmt(d.startDate)}</td><td>${fmt(d.endDate)}</td><td>${esc(d.driver1||'-')}</td><td>${d.wrapNeeded?'Evet':'Hayır'}</td><td>${'-'}</td><td>${['EUR','USD','TRY','GBP'].map(c=>{const v=(d.balances||{})[c];return v?money(v,c):''}).filter(Boolean).join('<br>')||'-'}</td><td>${esc(d.staff||'-')}</td><td><button class="secondary" onclick="openOperation('${d.id}')">Aç</button></td></tr>`).join('');$('dashEmpty').style.display=all.length?'none':'block'}
-function renderOperations(){const q=($('searchBox').value||'').toLowerCase(),sf=$('statusFilter').value,vf=$('vehicleFilter').value;const a=opCache.filter(d=>{const hay=[d.operationNo,d.customer,d.brand,d.model,d.plate,d.driver1,d.driver2,d.driver3,d.pickup,d.dropoff,d.staff].join(' ').toLowerCase();return(!q||hay.includes(q))&&(!sf||d.status===sf)&&(!vf||d.vehicleId===vf)});$('opListBody').innerHTML=a.map(d=>`<tr><td><strong>${esc(d.operationNo)}</strong></td><td>${esc(d.status)}</td><td>${esc([d.brand,d.model,d.year].filter(Boolean).join(' '))}</td><td>${esc(d.plate||'-')}</td><td>${fmt(d.startDate)}</td><td>${fmt(d.endDate)}</td><td>${esc(d.driver1||'-')}</td><td>${esc(d.driver2||'-')}</td><td>${esc(d.driver3||'-')}</td><td>${esc(d.pickup||'-')} → ${esc(d.dropoff||'-')}</td><td>${d.wrapNeeded?money(d.wrapFee,d.currency):'Hayır'}</td><td>${'-'}</td><td>${['EUR','USD','TRY','GBP'].map(c=>{const v=(d.balances||{})[c];return v?money(v,c):''}).filter(Boolean).join('<br>')||'-'}</td><td>${esc(d.staff||'-')}</td><td><button class="secondary" onclick="openOperation('${d.id}')">Aç</button></td></tr>`).join('');$('opEmpty').style.display=a.length?'none':'block'}
+
+function recordChargeTotals(d){
+  const t={EUR:0,USD:0,TRY:0,GBP:0};
+  [
+    [d.rentFee,d.rentCurrency,1],
+    [d.dropFee,d.dropCurrency,1],
+    [d.deposit,d.depositCurrency,1],
+    [d.driverFee,d.driverCurrency,1],
+    [d.insuranceFee,d.insuranceCurrency,1],
+    [d.extraFee,d.extraCurrency,1],
+    [d.wrapFee,d.wrapCurrency,1],
+    [d.discount,d.discountCurrency,-1]
+  ].forEach(([amount,currency,sign])=>{
+    const c=(currency||'EUR').toUpperCase();
+    if(t[c]===undefined)t[c]=0;
+    t[c]+=(Number(amount)||0)*sign;
+  });
+  return t;
+}
+function recordPaidTotals(d){
+  const t={EUR:0,USD:0,TRY:0,GBP:0};
+  (Array.isArray(d.payments)?d.payments:[]).forEach(p=>{
+    const c=(p.currency||'EUR').toUpperCase();
+    if(t[c]===undefined)t[c]=0;
+    t[c]+=Number(p.amount)||0;
+  });
+  return t;
+}
+function recordBalanceTotals(d){
+  const c=recordChargeTotals(d),p=recordPaidTotals(d),b={};
+  ['EUR','USD','TRY','GBP'].forEach(x=>b[x]=(c[x]||0)-(p[x]||0));
+  return b;
+}
+function formatCurrencyMap(map){
+  return ['EUR','USD','TRY','GBP']
+    .map(c=>Math.abs(Number(map[c])||0)>0.00001?money(map[c],c):'')
+    .filter(Boolean).join('<br>')||'-';
+}
+
+function renderDashboard(){const all=opCache;$('kAll').textContent=all.length;$('kDemand').textContent=all.filter(x=>['Talep Var','Netleşecek'].includes(x.status)).length;$('kPrep').textContent=all.filter(x=>['Onaylandı','Araç Hazırlanıyor','Kaplamada','Teslime Hazır'].includes(x.status)).length;$('kOut').textContent=all.filter(x=>x.status==='Teslim Edildi').length;$('kDone').textContent=all.filter(x=>['İade Alındı','Tamamlandı'].includes(x.status)).length;$('kVehicles').textContent=vehicleCache.length;$('dashBody').innerHTML=all.slice(0,30).map(d=>`<tr><td><strong>${esc(d.operationNo)}</strong></td><td><span class="statusdot ${statusDot(d.status)}"></span>${esc(d.status)}</td><td>${esc([d.brand,d.model,d.year].filter(Boolean).join(' '))}</td><td>${esc(d.plate||'-')}</td><td>${fmt(d.startDate)}</td><td>${fmt(d.endDate)}</td><td>${esc(d.driver1||'-')}</td><td>${d.wrapNeeded?'Evet':'Hayır'}</td><td>${formatCurrencyMap(recordChargeTotals(d))}</td><td>${formatCurrencyMap(recordBalanceTotals(d))}</td><td>${esc(d.staff||'-')}</td><td><button class="secondary" onclick="openOperation('${d.id}')">Aç</button></td></tr>`).join('');$('dashEmpty').style.display=all.length?'none':'block'}
+function renderOperations(){const q=($('searchBox').value||'').toLowerCase(),sf=$('statusFilter').value,vf=$('vehicleFilter').value;const a=opCache.filter(d=>{const hay=[d.operationNo,d.customer,d.brand,d.model,d.plate,d.driver1,d.driver2,d.driver3,d.pickup,d.dropoff,d.staff].join(' ').toLowerCase();return(!q||hay.includes(q))&&(!sf||d.status===sf)&&(!vf||d.vehicleId===vf)});$('opListBody').innerHTML=a.map(d=>`<tr><td><strong>${esc(d.operationNo)}</strong></td><td>${esc(d.status)}</td><td>${esc([d.brand,d.model,d.year].filter(Boolean).join(' '))}</td><td>${esc(d.plate||'-')}</td><td>${fmt(d.startDate)}</td><td>${fmt(d.endDate)}</td><td>${esc(d.driver1||'-')}</td><td>${esc(d.driver2||'-')}</td><td>${esc(d.driver3||'-')}</td><td>${esc(d.pickup||'-')} → ${esc(d.dropoff||'-')}</td><td>${d.wrapNeeded?money(d.wrapFee,d.wrapCurrency||'EUR'):'Hayır'}</td><td>${formatCurrencyMap(recordChargeTotals(d))}</td><td>${formatCurrencyMap(recordBalanceTotals(d))}</td><td>${esc(d.staff||'-')}</td><td><button class="secondary" onclick="openOperation('${d.id}')">Aç</button></td></tr>`).join('');$('opEmpty').style.display=a.length?'none':'block'}
 async function saveVehicle(){const id=$('vehicleEditId').value||uuid();const v={id,brand:$('vBrand').value.trim(),model:$('vModel').value.trim(),year:$('vYear').value,plate:$('vPlate').value.trim(),color:$('vColor').value.trim(),source:$('vSource').value,partner:$('vPartner').value.trim(),status:$('vStatus').value,notes:$('vNotes').value.trim(),updatedAt:new Date().toISOString()};if(!v.brand&&!v.model&&!v.plate)return alert('Araç için marka, model veya plaka bilgisi girin.');try{await saveVehicleData(v);clearVehicleForm();await refreshAll()}catch(e){alert('Araç kaydedilemedi: '+e.message)}}
 function editVehicle(id){const v=vehicleCache.find(x=>x.id===id);if(!v)return;$('vehicleEditId').value=id;$('vBrand').value=v.brand||'';$('vModel').value=v.model||'';$('vYear').value=v.year||'';$('vPlate').value=v.plate||'';$('vColor').value=v.color||'';$('vSource').value=v.source||'Özmal';$('vPartner').value=v.partner||'';$('vStatus').value=v.status||'Aktif';$('vNotes').value=v.notes||'';window.scrollTo({top:0,behavior:'smooth'})}
 async function removeVehicle(id){if(opCache.some(o=>o.vehicleId===id))return alert('Bu araç operasyon kayıtlarında kullanılıyor. Önce operasyon bağlantısını kaldırın.');if(!confirm('Araç kartı silinsin mi?'))return;try{await deleteVehicleData(id);await refreshAll()}catch(e){alert(e.message)}}
