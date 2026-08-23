@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Mayscar Rally Operasyon V8</title>
+<title>Mayscar Rally Operasyon V9</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--bg:#f5f6f8;--card:#fff;--text:#171717;--muted:#6b7280;--line:#dfe3e8;--dark:#111827;--green:#0b7a3b;--red:#b42318;--amber:#a15c00;--blue:#175cd3;--soft:#f2f4f7}
@@ -43,7 +43,7 @@ button,input,select,textarea{font:inherit}.hidden{display:none!important}.app{ma
 
 <div class="app">
   <div class="top">
-    <div class="brand"><h1>Mayscar Rally Operasyon V8</h1><p>Araç kartları • operasyon • 3 sürücü • maliyet • teslim/iade • ortak veritabanına hazır</p></div>
+    <div class="brand"><h1>Mayscar Rally Operasyon V9</h1><p>Araç kartları • operasyon • 3 sürücü • maliyet • teslim/iade • ortak veritabanına hazır</p></div>
     <div class="userbar"><span id="storageBadge" class="badge local">Yerel Mod</span><span id="userBadge" class="badge role">-</span><button class="secondary" onclick="logout()">Çıkış</button></div>
   </div>
 
@@ -132,7 +132,7 @@ button,input,select,textarea{font:inherit}.hidden{display:none!important}.app{ma
       </div>
 
       <div class="card"><h2>7. Kontrol / Hasar / Not</h2><div class="grid"><div class="span2"><label>Çıkış Kondisyon / Hasar</label><textarea id="damageOut"></textarea></div><div class="span2"><label>Dönüş Kondisyon / Hasar</label><textarea id="damageIn"></textarea></div><div class="span4"><label>Operasyon Notu</label><textarea id="notes"></textarea></div></div></div>
-      <div class="actions"><button type="button" class="primary" onclick="saveOperation(false)">Kaydet</button><button type="button" class="success" onclick="saveOperation(true)">Kaydet ve Listeye Dön</button><button type="button" class="secondary" onclick="newOperation()">Yeni Kayıt</button><button type="button" class="outline" onclick="window.print()">PDF / Yazdır</button><button type="button" id="deleteOpBtn" class="danger hidden" onclick="deleteOperation()">Kaydı Sil</button></div>
+      <div id="operationActions" class="actions"><button type="button" class="primary" onclick="saveOperation(false)">Kaydet</button><button type="button" class="success" onclick="saveOperation(true)">Kaydet ve Listeye Dön</button><button type="button" class="secondary" onclick="newOperation()">Yeni Kayıt</button><button type="button" class="outline" onclick="window.print()">PDF / Yazdır</button><button type="button" id="deleteOpBtn" class="danger hidden" onclick="deleteOperation()">Kaydı Sil</button></div>
     </form>
   </section>
 
@@ -148,7 +148,7 @@ button,input,select,textarea{font:inherit}.hidden{display:none!important}.app{ma
   </section>
 
   <section id="view-staff" class="hidden">
-    <div class="card"><h2>Personel</h2><div class="grid"><div><label>Ad Soyad</label><input id="staffName"></div><div><label>4 Haneli PIN</label><input id="staffPin" type="password" inputmode="numeric" maxlength="4"></div><div><label>Rol</label><select id="staffRole"><option>Operasyon</option><option>Yönetici</option><option>Görüntüleme</option></select></div><div style="display:flex;align-items:end"><button class="primary" style="width:100%" onclick="addStaff()">Personel Ekle / Güncelle</button></div></div><div class="note">Bu sürümde PIN girişi yerel modda çalışır. Bulut kurulumunda personel yetkilerini gerçek kullanıcı hesaplarına bağlamak gerekir.</div></div>
+    <div class="card"><h2>Personel / Yetkiler</h2><div class="grid"><div><label>Ad Soyad</label><input id="staffName"></div><div><label>4 Haneli PIN</label><input id="staffPin" type="password" inputmode="numeric" maxlength="4"></div><div><label>Rol</label><select id="staffRole"><option>Operasyon</option><option>Yönetici</option><option>Görüntüleme</option></select></div><div style="display:flex;align-items:end"><button class="primary" style="width:100%" onclick="addStaff()">Personel Ekle / Güncelle</button></div></div><div class="note">Bulut modunda yetki, Supabase Authentication hesabı ile public.personnel tablosundaki rol kaydı eşleştirilerek belirlenir. Yönetici; Personel ve Ayarlar ekranlarını görür ve silme işlemlerini yapabilir.</div></div>
     <div class="card"><h2>Kayıtlı Personel</h2><div class="tablewrap"><table style="min-width:600px"><thead><tr><th>Personel</th><th>Rol</th><th>Son Güncelleme</th><th></th></tr></thead><tbody id="staffBody"></tbody></table></div></div>
   </section>
 
@@ -172,6 +172,71 @@ function localStaff(){return JSON.parse(localStorage.getItem('rallyV3Staff')||'{
 function localOps(){return JSON.parse(localStorage.getItem('rallyV3Ops')||'[]')} function setLocalOps(x){localStorage.setItem('rallyV3Ops',JSON.stringify(x))}
 function localVehicles(){return JSON.parse(localStorage.getItem('rallyV3Vehicles')||'[]')} function setLocalVehicles(x){localStorage.setItem('rallyV3Vehicles',JSON.stringify(x))}
 function uuid(){return (crypto.randomUUID?crypto.randomUUID():'id_'+Date.now()+'_'+Math.random().toString(16).slice(2))}
+
+function isManager(){return currentRole==='Yönetici'}
+function isViewer(){return currentRole==='Görüntüleme'}
+
+async function resolveUserRole(user){
+  if(!user){currentRole='Operasyon';return currentRole}
+  let person=null;
+  try{
+    let q=await sb.from('personnel')
+      .select('full_name,role,email,active,auth_user_id')
+      .eq('auth_user_id',user.id)
+      .limit(1);
+    if(q.error)throw q.error;
+    person=(q.data||[])[0]||null;
+
+    if(!person && user.email){
+      q=await sb.from('personnel')
+        .select('full_name,role,email,active,auth_user_id')
+        .eq('email',user.email)
+        .limit(1);
+      if(q.error)throw q.error;
+      person=(q.data||[])[0]||null;
+    }
+  }catch(e){
+    console.warn('Rol okunamadı:',e);
+  }
+
+  if(person && person.active===false) throw new Error('Bu kullanıcı pasif durumda. Yönetici ile görüşün.');
+  currentRole=(person?.role||'Operasyon').trim()||'Operasyon';
+  sessionStorage.setItem('rallyRole',currentRole);
+  return currentRole;
+}
+
+function applyPermissions(){
+  if($('userBadge')) $('userBadge').textContent=(currentUser||'-')+' • '+currentRole;
+
+  const manager=isManager(), viewer=isViewer();
+  ['nav-staff','nav-settings'].forEach(id=>{if($(id))$(id).classList.toggle('hidden',!manager)});
+  if($('nav-operation')) $('nav-operation').classList.toggle('hidden',viewer);
+
+  // Yeni kayıt / düzenleme alanları
+  if($('operationActions')) $('operationActions').classList.toggle('hidden',viewer);
+  if($('operationForm')){
+    $('operationForm').querySelectorAll('input,select,textarea').forEach(e=>e.disabled=viewer);
+  }
+
+  // Yönetici olmayanlarda silme
+  if($('deleteOpBtn')) $('deleteOpBtn').classList.toggle('hidden',!manager || !editingOp);
+
+  // Araç formu: görüntüleme rolü sadece görür.
+  ['vBrand','vModel','vYear','vPlate','vColor','vSource','vPartner','vStatus','vNotes'].forEach(id=>{
+    if($(id))$(id).disabled=viewer;
+  });
+  document.querySelectorAll('[onclick="saveVehicle()"]').forEach(b=>b.classList.toggle('hidden',viewer));
+}
+
+function requireManager(action='Bu işlem'){
+  if(!isManager()){alert(action+' yalnızca Yönetici tarafından yapılabilir.');return false}
+  return true;
+}
+function requireEdit(action='Bu işlem'){
+  if(isViewer()){alert(action+' Görüntüleme rolünde kullanılamaz.');return false}
+  return true;
+}
+
 
 const SQL=`-- Mayscar Rally V4 - Supabase tabloları\ncreate table if not exists rally_vehicles (\n  id text primary key, brand text, model text, year int, plate text, color text, source text, partner text, status text, notes text, updated_at timestamptz default now()\n);\ncreate table if not exists rally_operations (\n  id text primary key, operation_no text, status text, customer text, staff text, start_date timestamptz, end_date timestamptz, vehicle_id text, data jsonb not null default '{}'::jsonb, total numeric default 0, balance numeric default 0, currency text default 'EUR', updated_at timestamptz default now()\n);\n\n-- MVP paylaşım politikası: sadece özel ekip uygulaması için.\nalter table rally_vehicles enable row level security;\nalter table rally_operations enable row level security;\ncreate policy \"rally vehicles read\" on rally_vehicles for select using (true);\ncreate policy \"rally vehicles write\" on rally_vehicles for all using (true) with check (true);\ncreate policy \"rally operations read\" on rally_operations for select using (true);\ncreate policy \"rally operations write\" on rally_operations for all using (true) with check (true);`;
 $('sqlBox').textContent=SQL;
@@ -318,15 +383,29 @@ async function loginUser(){
   try{
     const {data,error}=await sb.auth.signInWithPassword({email,password});
     if(error)throw error;
-    currentUser=data.user?.email||email; currentRole='Operasyon';
-    sessionStorage.setItem('rallyUser',currentUser); sessionStorage.setItem('rallyRole',currentRole);
-    $('login').classList.add('hidden'); $('userBadge').textContent=currentUser+' • '+currentRole; $('staff').value=currentUser;
+    currentUser=data.user?.email||email;
+    await resolveUserRole(data.user);
+    sessionStorage.setItem('rallyUser',currentUser);
+    $('login').classList.add('hidden');
+    $('staff').value=currentUser;
+    applyPermissions();
     await refreshAll();
-  }catch(e){$('loginMsg').textContent='Giriş yapılamadı: '+e.message}
+  }catch(e){
+    try{await sb.auth.signOut()}catch(_){}
+    currentUser=''; currentRole='Operasyon';
+    sessionStorage.removeItem('rallyUser'); sessionStorage.removeItem('rallyRole');
+    $('loginMsg').textContent='Giriş yapılamadı: '+e.message;
+  }
 }
 async function logout(){try{if(sb)await sb.auth.signOut()}catch(e){} sessionStorage.clear();currentUser='';$('loginPassword').value='';$('login').classList.remove('hidden')}
-function showView(v){['dashboard','operation','vehicles','list','staff','settings'].forEach(x=>{$('view-'+x).classList.toggle('hidden',x!==v);$('nav-'+x).classList.toggle('active',x===v)});if(v==='dashboard')renderDashboard();if(v==='vehicles')renderVehicles();if(v==='list')renderOperations();if(v==='staff')renderStaff()}
-async function refreshAll(){await getVehicles();await getOps();populateVehicleSelects();renderDashboard();renderVehicles();renderOperations();renderStaff();refreshMoney();if($('paymentsList')&&!$('paymentsList').children.length)addPaymentRow()}
+function showView(v){
+  if((v==='staff'||v==='settings')&&!isManager())return alert('Bu bölüm yalnızca Yönetici için açık.');
+  if(v==='operation'&&isViewer())return alert('Görüntüleme rolü yeni operasyon oluşturamaz.');
+  ['dashboard','operation','vehicles','list','staff','settings'].forEach(x=>{$('view-'+x).classList.toggle('hidden',x!==v);$('nav-'+x).classList.toggle('active',x===v)});
+  if(v==='dashboard')renderDashboard();if(v==='vehicles')renderVehicles();if(v==='list')renderOperations();if(v==='staff')renderStaff();
+  applyPermissions();
+}
+async function refreshAll(){await getVehicles();await getOps();populateVehicleSelects();renderDashboard();renderVehicles();renderOperations();renderStaff();refreshMoney();if($('paymentsList')&&!$('paymentsList').children.length)addPaymentRow();applyPermissions()}
 function populateVehicleSelects(){const cur=$('vehicleId').value;$('vehicleId').innerHTML='<option value="">Araç seçin...</option>'+vehicleCache.filter(v=>v.status!=='Pasif').map(v=>`<option value="${esc(v.id)}">${esc([v.brand,v.model,v.year,v.plate].filter(Boolean).join(' • '))}</option>`).join('');$('vehicleId').value=cur;const f=$('vehicleFilter').value;$('vehicleFilter').innerHTML='<option value="">Tüm Araçlar</option>'+vehicleCache.map(v=>`<option value="${esc(v.id)}">${esc([v.brand,v.model,v.plate].filter(Boolean).join(' • '))}</option>`).join('');$('vehicleFilter').value=f}
 function vehicleSelected(){const v=vehicleCache.find(x=>x.id===$('vehicleId').value);if(!v)return;['brand','model','year','plate','color','source','partner'].forEach(k=>$(k).value=v[k]??'')}
 function getPayments(){return [...document.querySelectorAll('#paymentsList .payment-row')].map(r=>({date:r.querySelector('.pDate').value,amount:Number(r.querySelector('.pAmount').value)||0,currency:r.querySelector('.pCurrency').value,method:r.querySelector('.pMethod').value,note:r.querySelector('.pNote').value})).filter(x=>x.amount>0)}
@@ -337,10 +416,10 @@ function balanceTotals(){const c=chargeTotals(),p=paidTotals(),b={};['EUR','USD'
 function refreshMoney(){const b=balanceTotals();['EUR','USD','TRY','GBP'].forEach(c=>{const e=$('balance'+c);if(e)e.textContent=money(b[c],c)});$('kmTotal').value=Math.max(n('kmIn')-n('kmOut'),0)||''}
 document.querySelectorAll('#operationForm input,#operationForm select,#operationForm textarea').forEach(e=>e.addEventListener('input',refreshMoney));
 function collectOp(){const d={id:editingOp||uuid(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),createdBy:currentUser};OP_FIELDS.forEach(k=>d[k]=val(k));const old=opCache.find(x=>x.id===editingOp);if(old){d.createdAt=old.createdAt||d.createdAt;d.createdBy=old.createdBy||currentUser}d.staff=currentUser;d.payments=getPayments();d.balances=balanceTotals();return d}
-async function saveOperation(goList){if(!currentUser)return alert('Önce giriş yapın.');if(!$('operationNo').value.trim())return alert('Operasyon No girin.');if(!$('vehicleId').value&&!$('model').value.trim()&&!$('plate').value.trim())return alert('Araç seçin veya araç bilgisini girin.');const d=collectOp();try{await saveOpData(d);editingOp=d.id;$('deleteOpBtn').classList.remove('hidden');await refreshAll();alert('Operasyon kaydedildi.');if(goList)showView('list')}catch(e){alert('Kayıt hatası: '+e.message)}}
+async function saveOperation(goList){if(!requireEdit('Operasyon kaydetme'))return;if(!currentUser)return alert('Önce giriş yapın.');if(!$('operationNo').value.trim())return alert('Operasyon No girin.');if(!$('vehicleId').value&&!$('model').value.trim()&&!$('plate').value.trim())return alert('Araç seçin veya araç bilgisini girin.');const d=collectOp();try{await saveOpData(d);editingOp=d.id;if(isManager())$('deleteOpBtn').classList.remove('hidden');await refreshAll();alert('Operasyon kaydedildi.');if(goList)showView('list')}catch(e){alert('Kayıt hatası: '+e.message)}}
 function newOperation(){editingOp=null;$('operationForm').reset();$('staff').value=currentUser;['rentCurrency','dropCurrency','depositCurrency','driverCurrency','insuranceCurrency','extraCurrency','discountCurrency','wrapCurrency'].forEach(id=>$(id).value='EUR');['wrapFee','rentFee','dropFee','deposit','driverFee','insuranceFee','extraFee','discount'].forEach(id=>$(id).value=0);$('paymentsList').innerHTML='';addPaymentRow();$('deleteOpBtn').classList.add('hidden');refreshMoney();showView('operation')}
-function openOperation(id){const d=opCache.find(x=>x.id===id);if(!d)return;editingOp=id;OP_FIELDS.forEach(k=>{const e=$(k);if(!e)return;if(e.type==='checkbox')e.checked=!!d[k];else e.value=d[k]??''});$('staff').value=currentUser;$('paymentsList').innerHTML='';(d.payments||[]).forEach(addPaymentRow);if(!(d.payments||[]).length)addPaymentRow();$('deleteOpBtn').classList.remove('hidden');refreshMoney();showView('operation');window.scrollTo({top:0,behavior:'smooth'})}
-async function deleteOperation(){if(!editingOp||!confirm('Bu operasyon kaydı silinsin mi?'))return;try{await deleteOpData(editingOp);newOperation();await refreshAll();showView('list')}catch(e){alert(e.message)}}
+function openOperation(id){const d=opCache.find(x=>x.id===id);if(!d)return;editingOp=id;OP_FIELDS.forEach(k=>{const e=$(k);if(!e)return;if(e.type==='checkbox')e.checked=!!d[k];else e.value=d[k]??''});$('staff').value=currentUser;$('paymentsList').innerHTML='';(d.payments||[]).forEach(addPaymentRow);if(!(d.payments||[]).length)addPaymentRow();if(isManager())$('deleteOpBtn').classList.remove('hidden');else $('deleteOpBtn').classList.add('hidden');refreshMoney();showView('operation');window.scrollTo({top:0,behavior:'smooth'})}
+async function deleteOperation(){if(!requireManager('Operasyon silme'))return;if(!editingOp||!confirm('Bu operasyon kaydı silinsin mi?'))return;try{await deleteOpData(editingOp);newOperation();await refreshAll();showView('list')}catch(e){alert(e.message)}}
 function statusDot(s){return ['Tamamlandı','İade Alındı'].includes(s)?'st-green':['İptal'].includes(s)?'st-red':'st-amber'}
 
 function recordChargeTotals(d){
@@ -383,28 +462,46 @@ function formatCurrencyMap(map){
 
 function renderDashboard(){const all=opCache;$('kAll').textContent=all.length;$('kDemand').textContent=all.filter(x=>['Talep Var','Netleşecek'].includes(x.status)).length;$('kPrep').textContent=all.filter(x=>['Onaylandı','Araç Hazırlanıyor','Kaplamada','Teslime Hazır'].includes(x.status)).length;$('kOut').textContent=all.filter(x=>x.status==='Teslim Edildi').length;$('kDone').textContent=all.filter(x=>['İade Alındı','Tamamlandı'].includes(x.status)).length;$('kVehicles').textContent=vehicleCache.length;$('dashBody').innerHTML=all.slice(0,30).map(d=>`<tr><td><strong>${esc(d.operationNo)}</strong></td><td><span class="statusdot ${statusDot(d.status)}"></span>${esc(d.status)}</td><td>${esc([d.brand,d.model,d.year].filter(Boolean).join(' '))}</td><td>${esc(d.plate||'-')}</td><td>${fmt(d.startDate)}</td><td>${fmt(d.endDate)}</td><td>${esc(d.driver1||'-')}</td><td>${d.wrapNeeded?'Evet':'Hayır'}</td><td>${formatCurrencyMap(recordChargeTotals(d))}</td><td>${formatCurrencyMap(recordBalanceTotals(d))}</td><td>${esc(d.staff||'-')}</td><td><button class="secondary" onclick="openOperation('${d.id}')">Aç</button></td></tr>`).join('');$('dashEmpty').style.display=all.length?'none':'block'}
 function renderOperations(){const q=($('searchBox').value||'').toLowerCase(),sf=$('statusFilter').value,vf=$('vehicleFilter').value;const a=opCache.filter(d=>{const hay=[d.operationNo,d.customer,d.brand,d.model,d.plate,d.driver1,d.driver2,d.driver3,d.pickup,d.dropoff,d.staff].join(' ').toLowerCase();return(!q||hay.includes(q))&&(!sf||d.status===sf)&&(!vf||d.vehicleId===vf)});$('opListBody').innerHTML=a.map(d=>`<tr><td><strong>${esc(d.operationNo)}</strong></td><td>${esc(d.status)}</td><td>${esc([d.brand,d.model,d.year].filter(Boolean).join(' '))}</td><td>${esc(d.plate||'-')}</td><td>${fmt(d.startDate)}</td><td>${fmt(d.endDate)}</td><td>${esc(d.driver1||'-')}</td><td>${esc(d.driver2||'-')}</td><td>${esc(d.driver3||'-')}</td><td>${esc(d.pickup||'-')} → ${esc(d.dropoff||'-')}</td><td>${d.wrapNeeded?money(d.wrapFee,d.wrapCurrency||'EUR'):'Hayır'}</td><td>${formatCurrencyMap(recordChargeTotals(d))}</td><td>${formatCurrencyMap(recordBalanceTotals(d))}</td><td>${esc(d.staff||'-')}</td><td><button class="secondary" onclick="openOperation('${d.id}')">Aç</button></td></tr>`).join('');$('opEmpty').style.display=a.length?'none':'block'}
-async function saveVehicle(){const id=$('vehicleEditId').value||uuid();const v={id,brand:$('vBrand').value.trim(),model:$('vModel').value.trim(),year:$('vYear').value,plate:$('vPlate').value.trim(),color:$('vColor').value.trim(),source:$('vSource').value,partner:$('vPartner').value.trim(),status:$('vStatus').value,notes:$('vNotes').value.trim(),updatedAt:new Date().toISOString()};if(!v.brand&&!v.model&&!v.plate)return alert('Araç için marka, model veya plaka bilgisi girin.');try{await saveVehicleData(v);clearVehicleForm();await refreshAll()}catch(e){alert('Araç kaydedilemedi: '+e.message)}}
-function editVehicle(id){const v=vehicleCache.find(x=>x.id===id);if(!v)return;$('vehicleEditId').value=id;$('vBrand').value=v.brand||'';$('vModel').value=v.model||'';$('vYear').value=v.year||'';$('vPlate').value=v.plate||'';$('vColor').value=v.color||'';$('vSource').value=v.source||'Özmal';$('vPartner').value=v.partner||'';$('vStatus').value=v.status||'Aktif';$('vNotes').value=v.notes||'';window.scrollTo({top:0,behavior:'smooth'})}
-async function removeVehicle(id){if(opCache.some(o=>o.vehicleId===id))return alert('Bu araç operasyon kayıtlarında kullanılıyor. Önce operasyon bağlantısını kaldırın.');if(!confirm('Araç kartı silinsin mi?'))return;try{await deleteVehicleData(id);await refreshAll()}catch(e){alert(e.message)}}
+async function saveVehicle(){if(!requireEdit('Araç kaydetme'))return;const id=$('vehicleEditId').value||uuid();const v={id,brand:$('vBrand').value.trim(),model:$('vModel').value.trim(),year:$('vYear').value,plate:$('vPlate').value.trim(),color:$('vColor').value.trim(),source:$('vSource').value,partner:$('vPartner').value.trim(),status:$('vStatus').value,notes:$('vNotes').value.trim(),updatedAt:new Date().toISOString()};if(!v.brand&&!v.model&&!v.plate)return alert('Araç için marka, model veya plaka bilgisi girin.');try{await saveVehicleData(v);clearVehicleForm();await refreshAll()}catch(e){alert('Araç kaydedilemedi: '+e.message)}}
+function editVehicle(id){if(!requireEdit('Araç düzenleme'))return;const v=vehicleCache.find(x=>x.id===id);if(!v)return;$('vehicleEditId').value=id;$('vBrand').value=v.brand||'';$('vModel').value=v.model||'';$('vYear').value=v.year||'';$('vPlate').value=v.plate||'';$('vColor').value=v.color||'';$('vSource').value=v.source||'Özmal';$('vPartner').value=v.partner||'';$('vStatus').value=v.status||'Aktif';$('vNotes').value=v.notes||'';window.scrollTo({top:0,behavior:'smooth'})}
+async function removeVehicle(id){if(!requireManager('Araç silme'))return;if(opCache.some(o=>o.vehicleId===id))return alert('Bu araç operasyon kayıtlarında kullanılıyor. Önce operasyon bağlantısını kaldırın.');if(!confirm('Araç kartı silinsin mi?'))return;try{await deleteVehicleData(id);await refreshAll()}catch(e){alert(e.message)}}
 function clearVehicleForm(){$('vehicleEditId').value='';['vBrand','vModel','vYear','vPlate','vColor','vPartner','vNotes'].forEach(x=>$(x).value='');$('vSource').value='Özmal';$('vStatus').value='Aktif'}
-function renderVehicles(){$('vehicleCards').innerHTML=vehicleCache.map(v=>`<div class="vehicle-card"><div class="title">${esc([v.brand,v.model].filter(Boolean).join(' '))}</div><div class="meta">${esc([v.year,v.plate,v.color].filter(Boolean).join(' • ')||'Plaka/yıl bilgisi bekliyor')}</div><div class="tiny">${esc(v.source||'-')}${v.partner?' • '+esc(v.partner):''} • ${esc(v.status||'Aktif')}</div><div style="display:flex;gap:7px;margin-top:10px"><button class="secondary" onclick="editVehicle('${v.id}')">Düzenle</button><button class="danger" onclick="removeVehicle('${v.id}')">Sil</button></div></div>`).join('');$('vehicleEmpty').classList.toggle('hidden',vehicleCache.length>0)}
-function addStaff(){const name=$('staffName').value.trim(),pin=$('staffPin').value.trim(),role=$('staffRole').value;if(!name||!/^[0-9]{4}$/.test(pin))return alert('Ad Soyad ve 4 haneli PIN girin.');const s=localStaff();s[name]={pin,role,updatedAt:new Date().toISOString()};setLocalStaff(s);$('staffName').value='';$('staffPin').value='';renderStaff()}
+function renderVehicles(){$('vehicleCards').innerHTML=vehicleCache.map(v=>`<div class="vehicle-card"><div class="title">${esc([v.brand,v.model].filter(Boolean).join(' '))}</div><div class="meta">${esc([v.year,v.plate,v.color].filter(Boolean).join(' • ')||'Plaka/yıl bilgisi bekliyor')}</div><div class="tiny">${esc(v.source||'-')}${v.partner?' • '+esc(v.partner):''} • ${esc(v.status||'Aktif')}</div>${isViewer()?'':`<div style="display:flex;gap:7px;margin-top:10px"><button class="secondary" onclick="editVehicle('${v.id}')">Düzenle</button>${isManager()?`<button class="danger" onclick="removeVehicle('${v.id}')">Sil</button>`:''}</div>`}</div>`).join('');$('vehicleEmpty').classList.toggle('hidden',vehicleCache.length>0);applyPermissions()}
+function addStaff(){if(!requireManager('Personel yönetimi'))return;const name=$('staffName').value.trim(),pin=$('staffPin').value.trim(),role=$('staffRole').value;if(!name||!/^[0-9]{4}$/.test(pin))return alert('Ad Soyad ve 4 haneli PIN girin.');const s=localStaff();s[name]={pin,role,updatedAt:new Date().toISOString()};setLocalStaff(s);$('staffName').value='';$('staffPin').value='';renderStaff()}
 function renderStaff(){const s=localStaff();$('staffBody').innerHTML=Object.entries(s).map(([name,x])=>`<tr><td><strong>${esc(name)}</strong></td><td>${esc(x.role||'Operasyon')}</td><td>${fmt(x.updatedAt)}</td><td><button class="danger" onclick="removeStaff('${esc(name)}')">Sil</button></td></tr>`).join('')}
-function removeStaff(name){if(name===currentUser)return alert('Aktif kullanıcıyı silemezsiniz.');if(!confirm(name+' silinsin mi?'))return;const s=localStaff();delete s[name];setLocalStaff(s);renderStaff()}
+function removeStaff(name){if(!requireManager('Personel silme'))return;if(name===currentUser)return alert('Aktif kullanıcıyı silemezsiniz.');if(!confirm(name+' silinsin mi?'))return;const s=localStaff();delete s[name];setLocalStaff(s);renderStaff()}
 function exportBackup(){const payload={exportedAt:new Date().toISOString(),vehicles:vehicleCache,operations:opCache,staff:localStaff()};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mayscar_rally_v3_yedek.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
-function saveCloudConfig(){const url=$('supabaseUrl').value.trim(),key=$('supabaseKey').value.trim();if(!url||!key)return alert('Supabase URL ve Publishable Key girin.');localStorage.setItem('rallySupabaseUrl',url);localStorage.setItem('rallySupabaseKey',key);initCloud();$('cloudMsg').textContent='Ayarlar kaydedildi. Şimdi bağlantıyı test edin.'}
+function saveCloudConfig(){if(!requireManager('Bulut ayarlarını değiştirme'))return;const url=$('supabaseUrl').value.trim(),key=$('supabaseKey').value.trim();if(!url||!key)return alert('Supabase URL ve Publishable Key girin.');localStorage.setItem('rallySupabaseUrl',url);localStorage.setItem('rallySupabaseKey',key);initCloud();$('cloudMsg').textContent='Ayarlar kaydedildi. Şimdi bağlantıyı test edin.'}
 async function testCloud(){if(!cloudEnabled)return $('cloudMsg').textContent='Önce URL ve Publishable Key kaydedin.';$('cloudMsg').textContent='Bağlantı test ediliyor...';try{const {error}=await sb.from('vehicles').select('id').limit(1);if(error)throw error;$('cloudMsg').textContent='Bağlantı başarılı. Artık Ortak Bulut modu kullanılabilir.';await refreshAll()}catch(e){$('cloudMsg').textContent='Bağlantı kurulamadı: '+e.message}}
-function disableCloud(){localStorage.removeItem('rallySupabaseUrl');localStorage.removeItem('rallySupabaseKey');sb=null;cloudEnabled=false;$('supabaseUrl').value='';$('supabaseKey').value='';$('cloudMsg').textContent='Yerel moda dönüldü.';updateStorageBadge();refreshAll()}
+function disableCloud(){if(!requireManager('Bulut bağlantısını kapatma'))return;localStorage.removeItem('rallySupabaseUrl');localStorage.removeItem('rallySupabaseKey');sb=null;cloudEnabled=false;$('supabaseUrl').value='';$('supabaseKey').value='';$('cloudMsg').textContent='Yerel moda dönüldü.';updateStorageBadge();refreshAll()}
 function copySQL(){navigator.clipboard?.writeText(SQL).then(()=>alert('Kurulum SQL kopyalandı.')).catch(()=>alert('SQL kutusundan metni seçip kopyalayın.'))}
-async function migrateLocalToCloud(){if(!cloudEnabled)return alert('Önce Supabase bağlantısını kurun.');if(!confirm('Bu cihazdaki yerel araçlar ve operasyonlar buluta aktarılsın mı?'))return;try{for(const v of localVehicles())await saveVehicleData(v);for(const d of localOps())await saveOpData(d);await refreshAll();alert('Yerel kayıtlar buluta aktarıldı.')}catch(e){alert('Aktarım hatası: '+e.message)}}
+async function migrateLocalToCloud(){if(!requireManager('Yerel veriyi buluta aktarma'))return;if(!cloudEnabled)return alert('Önce Supabase bağlantısını kurun.');if(!confirm('Bu cihazdaki yerel araçlar ve operasyonlar buluta aktarılsın mı?'))return;try{for(const v of localVehicles())await saveVehicleData(v);for(const d of localOps())await saveOpData(d);await refreshAll();alert('Yerel kayıtlar buluta aktarıldı.')}catch(e){alert('Aktarım hatası: '+e.message)}}
 
 async function boot(){
   seed(); initCloud();
   if(sb){
-    try{const {data}=await sb.auth.getSession(); if(data?.session?.user){currentUser=data.session.user.email||'Kullanıcı'; currentRole='Operasyon'; sessionStorage.setItem('rallyUser',currentUser); sessionStorage.setItem('rallyRole',currentRole)}}catch(e){}
+    try{
+      const {data}=await sb.auth.getSession();
+      if(data?.session?.user){
+        currentUser=data.session.user.email||'Kullanıcı';
+        await resolveUserRole(data.session.user);
+        sessionStorage.setItem('rallyUser',currentUser);
+      }else{
+        currentUser=''; currentRole='Operasyon';
+        sessionStorage.removeItem('rallyUser'); sessionStorage.removeItem('rallyRole');
+      }
+    }catch(e){
+      console.warn(e);
+      currentUser=''; currentRole='Operasyon';
+    }
   }
-  if(currentUser){$('login').classList.add('hidden');$('userBadge').textContent=currentUser+' • '+currentRole;$('staff').value=currentUser}else $('login').classList.remove('hidden');
+  if(currentUser){
+    $('login').classList.add('hidden');
+    $('staff').value=currentUser;
+    applyPermissions();
+  }else $('login').classList.remove('hidden');
   await refreshAll();
+  applyPermissions();
 }
 boot();
 </script>
