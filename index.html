@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Mayscar Rally Operasyon V9</title>
+<title>Mayscar Rally Operasyon V10</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--bg:#f5f6f8;--card:#fff;--text:#171717;--muted:#6b7280;--line:#dfe3e8;--dark:#111827;--green:#0b7a3b;--red:#b42318;--amber:#a15c00;--blue:#175cd3;--soft:#f2f4f7}
@@ -29,21 +29,13 @@ button,input,select,textarea{font:inherit}.hidden{display:none!important}.app{ma
     <label>E-posta</label><input id="loginEmail" type="email" placeholder="personel@mayscar.com" autocomplete="username">
     <label style="margin-top:10px">Şifre</label><input id="loginPassword" type="password" placeholder="Şifreniz" autocomplete="current-password">
     <div id="loginMsg" class="note">Supabase’de oluşturulan kullanıcı hesabınızla giriş yapın.</div>
-    <button class="secondary" style="width:100%;margin-bottom:9px" onclick="toggleLoginCloudSettings()">⚙️ Bağlantı Ayarları</button>
-    <div id="loginCloudSettings" class="hidden" style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:10px">
-      <label>Supabase Project URL</label>
-      <input id="loginSupabaseUrl" placeholder="https://xxxx.supabase.co" autocapitalize="none" autocomplete="off">
-      <label style="margin-top:9px">Supabase Publishable Key</label>
-      <textarea id="loginSupabaseKey" style="min-height:88px" placeholder="sb_publishable_..." autocapitalize="none" autocomplete="off"></textarea>
-      <button class="success" style="width:100%;margin-top:9px" onclick="saveLoginCloudConfig()">Bağlantıyı Kaydet ve Test Et</button>
-    </div>
     <button class="primary" style="width:100%" onclick="loginUser()">Giriş Yap</button>
   </div>
 </div>
 
 <div class="app">
   <div class="top">
-    <div class="brand"><h1>Mayscar Rally Operasyon V9</h1><p>Araç kartları • operasyon • 3 sürücü • maliyet • teslim/iade • ortak veritabanına hazır</p></div>
+    <div class="brand"><h1>Mayscar Rally Operasyon V10</h1><p>Araç kartları • operasyon • 3 sürücü • maliyet • teslim/iade • ortak veritabanına hazır</p></div>
     <div class="userbar"><span id="storageBadge" class="badge local">Yerel Mod</span><span id="userBadge" class="badge role">-</span><button class="secondary" onclick="logout()">Çıkış</button></div>
   </div>
 
@@ -154,7 +146,7 @@ button,input,select,textarea{font:inherit}.hidden{display:none!important}.app{ma
 
   <section id="view-settings" class="hidden">
     <div class="card"><h2>Ortak Bulut Veritabanı</h2><div class="setupgrid">
-      <div><label>Supabase Project URL</label><input id="supabaseUrl" placeholder="https://xxxx.supabase.co"><label style="margin-top:9px">Supabase Publishable Key</label><textarea id="supabaseKey" style="min-height:100px"></textarea><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:9px"><button class="primary" onclick="saveCloudConfig()">Ayarları Kaydet</button><button class="secondary" onclick="testCloud()">Bağlantıyı Test Et</button><button class="danger" onclick="disableCloud()">Yerel Moda Dön</button></div><div id="cloudMsg" class="note">Henüz ortak veritabanı bağlı değil. V4, oluşturduğumuz vehicles / personnel / operations tablolarına göre güncellendi.</div></div>
+      <div><div class="note"><strong>Bulut bağlantısı otomatik.</strong><br>Bu sürüm Supabase projesine doğrudan bağlanır. Kullanıcıların Project URL veya Publishable Key girmesine gerek yoktur.</div><button class="secondary" onclick="testCloud()">Bağlantıyı Test Et</button><div id="cloudMsg" class="note">Ortak bulut bağlantısı uygulama açılışında otomatik başlatılır.</div></div>
       <div><div class="note"><strong>Nasıl çalışacak?</strong><br>Supabase projesi oluşturulduktan sonra aşağıdaki SQL bir kez çalıştırılır. URL ve Publishable Key buraya girilir. Sonra araçlar ve operasyonlar ortak veritabanından okunur.</div><button class="secondary" onclick="copySQL()">Kurulum SQL'ini Kopyala</button><div id="sqlBox" class="codebox"></div></div>
     </div></div>
     <div class="card"><h2>Yerel Veriyi Buluta Aktar</h2><p class="tiny">Bulut bağlantısı kurulduktan sonra bu cihazdaki araç kartlarını ve operasyonları Supabase'e gönderebilirsiniz.</p><button class="success" onclick="migrateLocalToCloud()">Yerel Kayıtları Buluta Aktar</button></div>
@@ -164,6 +156,8 @@ button,input,select,textarea{font:inherit}.hidden{display:none!important}.app{ma
 <script>
 const OP_FIELDS=['operationNo','status','customer','staff','startDate','endDate','vehicleId','source','partner','brand','model','year','plate','color','kmOut','kmIn','fuelOut','fuelIn','pickup','dropoff','deliveredBy','receivedBy','deliveryContact','returnContact','driver1','driver1Phone','driver1License','driver1LicenseExp','driver2','driver2Phone','driver2License','driver2LicenseExp','driver3','driver3Phone','driver3License','driver3LicenseExp','wrapNeeded','wrapRemoved','washed','photos','docs','wrapCompany','wrapFee','wrapDate','unwrapDate','wrapNote','rentFee','rentCurrency','dropFee','dropCurrency','deposit','depositCurrency','driverFee','driverCurrency','insuranceFee','insuranceCurrency','extraFee','extraCurrency','discount','discountCurrency','wrapCurrency','depositStatus','damageOut','damageIn','notes'];
 let currentUser=sessionStorage.getItem('rallyUser')||''; let currentRole=sessionStorage.getItem('rallyRole')||'Operasyon'; let editingOp=null; let sb=null; let cloudEnabled=false; let opCache=[]; let vehicleCache=[];
+const SUPABASE_URL='https://qlsdkcqxyyxvahwfjmiv.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY='sb_publishable_2MLIwLfrIKiP6-JNZP7peA_OZah3JHB';
 const $=id=>document.getElementById(id); const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 const n=id=>parseFloat($(id).value)||0; const val=id=>{const e=$(id);return e.type==='checkbox'?e.checked:e.value};
 const money=(v,c)=>new Intl.NumberFormat('tr-TR',{maximumFractionDigits:2}).format(Number(v)||0)+' '+(c||'EUR');
@@ -241,7 +235,17 @@ function requireEdit(action='Bu işlem'){
 const SQL=`-- Mayscar Rally V4 - Supabase tabloları\ncreate table if not exists rally_vehicles (\n  id text primary key, brand text, model text, year int, plate text, color text, source text, partner text, status text, notes text, updated_at timestamptz default now()\n);\ncreate table if not exists rally_operations (\n  id text primary key, operation_no text, status text, customer text, staff text, start_date timestamptz, end_date timestamptz, vehicle_id text, data jsonb not null default '{}'::jsonb, total numeric default 0, balance numeric default 0, currency text default 'EUR', updated_at timestamptz default now()\n);\n\n-- MVP paylaşım politikası: sadece özel ekip uygulaması için.\nalter table rally_vehicles enable row level security;\nalter table rally_operations enable row level security;\ncreate policy \"rally vehicles read\" on rally_vehicles for select using (true);\ncreate policy \"rally vehicles write\" on rally_vehicles for all using (true) with check (true);\ncreate policy \"rally operations read\" on rally_operations for select using (true);\ncreate policy \"rally operations write\" on rally_operations for all using (true) with check (true);`;
 $('sqlBox').textContent=SQL;
 
-function initCloud(){const url=localStorage.getItem('rallySupabaseUrl')||'';const key=localStorage.getItem('rallySupabaseKey')||'';$('supabaseUrl').value=url;$('supabaseKey').value=key;if(url&&key&&window.supabase){try{sb=window.supabase.createClient(url,key);cloudEnabled=true}catch(e){cloudEnabled=false}}updateStorageBadge()}
+function initCloud(){
+  try{
+    if(!window.supabase) throw new Error('Supabase kütüphanesi yüklenemedi.');
+    sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+    cloudEnabled=true;
+  }catch(e){
+    console.error('Bulut bağlantısı başlatılamadı:',e);
+    sb=null; cloudEnabled=false;
+  }
+  updateStorageBadge();
+}}
 function updateStorageBadge(){$('storageBadge').textContent=cloudEnabled?'Ortak Bulut':'Yerel Mod';$('storageBadge').className='badge '+(cloudEnabled?'cloud':'local')}
 async function getVehicles(){
   if(cloudEnabled){
@@ -357,29 +361,13 @@ async function deleteOpData(id){
 }
 function seed(){if(!localVehicles().length){setLocalVehicles([{id:uuid(),brand:'Mercedes-Benz',model:'G-Class (G Kasa)',year:'',plate:'',color:'',source:'Özmal',partner:'',status:'Aktif',notes:'Rally talebi için araç kartı',updatedAt:new Date().toISOString()},{id:uuid(),brand:'Range Rover',model:'Vogue (Yeni Kasa)',year:'',plate:'',color:'',source:'Özmal',partner:'',status:'Aktif',notes:'Rally talebi için araç kartı',updatedAt:new Date().toISOString()}])}}
 
-function toggleLoginCloudSettings(){
-  const box=$('loginCloudSettings'); box.classList.toggle('hidden');
-  $('loginSupabaseUrl').value=localStorage.getItem('rallySupabaseUrl')||'';
-  $('loginSupabaseKey').value=localStorage.getItem('rallySupabaseKey')||'';
-}
-async function saveLoginCloudConfig(){
-  const url=$('loginSupabaseUrl').value.trim(), key=$('loginSupabaseKey').value.trim();
-  if(!url||!key){$('loginMsg').textContent='Project URL ve Publishable Key alanlarını doldurun.';return}
-  localStorage.setItem('rallySupabaseUrl',url); localStorage.setItem('rallySupabaseKey',key);
-  $('supabaseUrl').value=url; $('supabaseKey').value=key; initCloud();
-  if(!cloudEnabled||!sb){$('loginMsg').textContent='Bağlantı başlatılamadı. Bilgileri kontrol edin.';return}
-  $('loginMsg').textContent='Bağlantı test ediliyor...';
-  try{
-    const {error}=await sb.from('vehicles').select('id').limit(1); if(error)throw error;
-    $('loginMsg').textContent='✓ Bulut bağlantısı hazır. Şimdi e-posta ve şifrenizle giriş yapın.';
-    $('loginCloudSettings').classList.add('hidden'); updateStorageBadge();
-  }catch(e){$('loginMsg').textContent='Bağlantı hatası: '+e.message}
-}
+function toggleLoginCloudSettings(){}
+async function saveLoginCloudConfig(){}
 
 async function loginUser(){
   const email=$('loginEmail').value.trim(), password=$('loginPassword').value;
   if(!email||!password){alert('E-posta ve şifrenizi girin.');return}
-  if(!cloudEnabled||!sb){$('loginMsg').textContent='Önce Bağlantı Ayarları bölümünden Project URL ve Publishable Key bilgilerini kaydedin.';$('loginCloudSettings').classList.remove('hidden');return}
+  if(!cloudEnabled||!sb){$('loginMsg').textContent='Bulut bağlantısı başlatılamadı. Sayfayı yenileyin.';return}
   try{
     const {data,error}=await sb.auth.signInWithPassword({email,password});
     if(error)throw error;
@@ -471,38 +459,7 @@ function addStaff(){if(!requireManager('Personel yönetimi'))return;const name=$
 function renderStaff(){const s=localStaff();$('staffBody').innerHTML=Object.entries(s).map(([name,x])=>`<tr><td><strong>${esc(name)}</strong></td><td>${esc(x.role||'Operasyon')}</td><td>${fmt(x.updatedAt)}</td><td><button class="danger" onclick="removeStaff('${esc(name)}')">Sil</button></td></tr>`).join('')}
 function removeStaff(name){if(!requireManager('Personel silme'))return;if(name===currentUser)return alert('Aktif kullanıcıyı silemezsiniz.');if(!confirm(name+' silinsin mi?'))return;const s=localStaff();delete s[name];setLocalStaff(s);renderStaff()}
 function exportBackup(){const payload={exportedAt:new Date().toISOString(),vehicles:vehicleCache,operations:opCache,staff:localStaff()};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mayscar_rally_v3_yedek.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
-function saveCloudConfig(){if(!requireManager('Bulut ayarlarını değiştirme'))return;const url=$('supabaseUrl').value.trim(),key=$('supabaseKey').value.trim();if(!url||!key)return alert('Supabase URL ve Publishable Key girin.');localStorage.setItem('rallySupabaseUrl',url);localStorage.setItem('rallySupabaseKey',key);initCloud();$('cloudMsg').textContent='Ayarlar kaydedildi. Şimdi bağlantıyı test edin.'}
-async function testCloud(){if(!cloudEnabled)return $('cloudMsg').textContent='Önce URL ve Publishable Key kaydedin.';$('cloudMsg').textContent='Bağlantı test ediliyor...';try{const {error}=await sb.from('vehicles').select('id').limit(1);if(error)throw error;$('cloudMsg').textContent='Bağlantı başarılı. Artık Ortak Bulut modu kullanılabilir.';await refreshAll()}catch(e){$('cloudMsg').textContent='Bağlantı kurulamadı: '+e.message}}
-function disableCloud(){if(!requireManager('Bulut bağlantısını kapatma'))return;localStorage.removeItem('rallySupabaseUrl');localStorage.removeItem('rallySupabaseKey');sb=null;cloudEnabled=false;$('supabaseUrl').value='';$('supabaseKey').value='';$('cloudMsg').textContent='Yerel moda dönüldü.';updateStorageBadge();refreshAll()}
-function copySQL(){navigator.clipboard?.writeText(SQL).then(()=>alert('Kurulum SQL kopyalandı.')).catch(()=>alert('SQL kutusundan metni seçip kopyalayın.'))}
-async function migrateLocalToCloud(){if(!requireManager('Yerel veriyi buluta aktarma'))return;if(!cloudEnabled)return alert('Önce Supabase bağlantısını kurun.');if(!confirm('Bu cihazdaki yerel araçlar ve operasyonlar buluta aktarılsın mı?'))return;try{for(const v of localVehicles())await saveVehicleData(v);for(const d of localOps())await saveOpData(d);await refreshAll();alert('Yerel kayıtlar buluta aktarıldı.')}catch(e){alert('Aktarım hatası: '+e.message)}}
-
-async function boot(){
-  seed(); initCloud();
-  if(sb){
-    try{
-      const {data}=await sb.auth.getSession();
-      if(data?.session?.user){
-        currentUser=data.session.user.email||'Kullanıcı';
-        await resolveUserRole(data.session.user);
-        sessionStorage.setItem('rallyUser',currentUser);
-      }else{
-        currentUser=''; currentRole='Operasyon';
-        sessionStorage.removeItem('rallyUser'); sessionStorage.removeItem('rallyRole');
-      }
-    }catch(e){
-      console.warn(e);
-      currentUser=''; currentRole='Operasyon';
-    }
-  }
-  if(currentUser){
-    $('login').classList.add('hidden');
-    $('staff').value=currentUser;
-    applyPermissions();
-  }else $('login').classList.remove('hidden');
-  await refreshAll();
-  applyPermissions();
-}
+function saveCloudConfig(){alert('V10’da bulut bağlantısı otomatik yapılandırılmıştır.');}
 boot();
 </script>
 </body>
