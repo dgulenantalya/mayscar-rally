@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Mayscar Rally Operasyon V6</title>
+<title>Mayscar Rally Operasyon V7</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--bg:#f5f6f8;--card:#fff;--text:#171717;--muted:#6b7280;--line:#dfe3e8;--dark:#111827;--green:#0b7a3b;--red:#b42318;--amber:#a15c00;--blue:#175cd3;--soft:#f2f4f7}
@@ -14,6 +14,11 @@ button,input,select,textarea{font:inherit}.hidden{display:none!important}.app{ma
 @media(max-width:1000px){.grid{grid-template-columns:repeat(2,1fr)}.span3,.span4{grid-column:span 2}.kpis{grid-template-columns:repeat(3,1fr)}.vehicle-grid{grid-template-columns:repeat(2,1fr)}.moneybox{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:620px){.app{padding:9px}.top{align-items:flex-start;flex-direction:column}.grid,.kpis,.vehicle-grid,.moneybox,.toolbar,.setupgrid{grid-template-columns:1fr}.span2,.span3,.span4{grid-column:span 1}.brand h1{font-size:20px}.card{padding:12px}.actions{position:static}}
 @media print{.nav,.userbar,.actions,.toolbar,#login{display:none!important}.app{max-width:none}.card{box-shadow:none}}
+
+.payment-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1.4fr auto;gap:8px;align-items:end;padding:10px;border:1px solid #d9dee7;border-radius:12px;margin-bottom:8px;background:#fff}
+.payment-row label{font-size:12px}.payment-row input,.payment-row select{width:100%}
+@media(max-width:760px){.payment-row{grid-template-columns:1fr 1fr}.payment-row .payment-note{grid-column:1/-1}}
+
 </style>
 </head>
 <body>
@@ -38,7 +43,7 @@ button,input,select,textarea{font:inherit}.hidden{display:none!important}.app{ma
 
 <div class="app">
   <div class="top">
-    <div class="brand"><h1>Mayscar Rally Operasyon V6</h1><p>Araç kartları • operasyon • 3 sürücü • maliyet • teslim/iade • ortak veritabanına hazır</p></div>
+    <div class="brand"><h1>Mayscar Rally Operasyon V7</h1><p>Araç kartları • operasyon • 3 sürücü • maliyet • teslim/iade • ortak veritabanına hazır</p></div>
     <div class="userbar"><span id="storageBadge" class="badge local">Yerel Mod</span><span id="userBadge" class="badge role">-</span><button class="secondary" onclick="logout()">Çıkış</button></div>
   </div>
 
@@ -99,12 +104,32 @@ button,input,select,textarea{font:inherit}.hidden{display:none!important}.app{ma
         <div class="grid" style="margin-top:10px"><div><label>Kaplama Firması</label><input id="wrapCompany"></div><div><label>Kaplama Ücreti</label><input id="wrapFee" type="number" min="0" step="0.01" value="0"></div><div><label>Kaplama Tarihi</label><input id="wrapDate" type="datetime-local"></div><div><label>Söküm Tarihi</label><input id="unwrapDate" type="datetime-local"></div><div class="span4"><label>Kaplama / Hazırlık Notu</label><textarea id="wrapNote"></textarea></div></div>
       </div>
 
-      <div class="card"><h2>6. Ücretler / Ödeme</h2><div class="grid">
-        <div><label>Para Birimi</label><select id="currency"><option>EUR</option><option>USD</option><option>TRY</option><option>GBP</option></select></div><div><label>Kira Ücreti</label><input id="rentFee" type="number" min="0" step="0.01" value="0"></div><div><label>Drop / One-way</label><input id="dropFee" type="number" min="0" step="0.01" value="0"></div><div><label>Depozito</label><input id="deposit" type="number" min="0" step="0.01" value="0"></div>
-        <div><label>Sürücü / Ek Hizmet</label><input id="driverFee" type="number" min="0" step="0.01" value="0"></div><div><label>Sigorta / Ek Sigorta</label><input id="insuranceFee" type="number" min="0" step="0.01" value="0"></div><div><label>Diğer Masraf</label><input id="extraFee" type="number" min="0" step="0.01" value="0"></div><div><label>İndirim</label><input id="discount" type="number" min="0" step="0.01" value="0"></div>
-        <div><label>Tahsil Edilen</label><input id="paid" type="number" min="0" step="0.01" value="0"></div><div><label>Ödeme Tipi</label><select id="payment"><option>Nakit</option><option>Havale</option><option>Kredi Kartı / POS</option><option>Karışık</option><option>Bekliyor</option></select></div><div><label>Depozito Durumu</label><select id="depositStatus"><option>Alınmadı</option><option>Alındı</option><option>Kısmi</option><option>İade Edildi</option><option>Kesinti Yapıldı</option></select></div>
+      <div class="card"><h2>6. Ücretler / Çoklu Döviz / Tahsilat</h2>
+        <div class="grid">
+          <div><label>Kira Ücreti</label><input id="rentFee" type="number" min="0" step="0.01" value="0"><select id="rentCurrency"><option>EUR</option><option>USD</option><option>TRY</option><option>GBP</option></select></div>
+          <div><label>Drop / One-way</label><input id="dropFee" type="number" min="0" step="0.01" value="0"><select id="dropCurrency"><option>EUR</option><option>USD</option><option>TRY</option><option>GBP</option></select></div>
+          <div><label>Depozito</label><input id="deposit" type="number" min="0" step="0.01" value="0"><select id="depositCurrency"><option>EUR</option><option>USD</option><option>TRY</option><option>GBP</option></select></div>
+          <div><label>Sürücü / Ek Hizmet</label><input id="driverFee" type="number" min="0" step="0.01" value="0"><select id="driverCurrency"><option>EUR</option><option>USD</option><option>TRY</option><option>GBP</option></select></div>
+          <div><label>Sigorta / Ek Sigorta</label><input id="insuranceFee" type="number" min="0" step="0.01" value="0"><select id="insuranceCurrency"><option>EUR</option><option>USD</option><option>TRY</option><option>GBP</option></select></div>
+          <div><label>Diğer Masraf</label><input id="extraFee" type="number" min="0" step="0.01" value="0"><select id="extraCurrency"><option>EUR</option><option>USD</option><option>TRY</option><option>GBP</option></select></div>
+          <div><label>İndirim</label><input id="discount" type="number" min="0" step="0.01" value="0"><select id="discountCurrency"><option>EUR</option><option>USD</option><option>TRY</option><option>GBP</option></select></div>
+          <div><label>Kaplama Ücreti Para Birimi</label><select id="wrapCurrency"><option>EUR</option><option>USD</option><option>TRY</option><option>GBP</option></select><small>Kaplama tutarı yukarıdaki Kaplama Ücreti alanından alınır.</small></div>
+          <div><label>Depozito Durumu</label><select id="depositStatus"><option>Alınmadı</option><option>Alındı</option><option>Kısmi</option><option>İade Edildi</option><option>Kesinti Yapıldı</option></select></div>
+        </div>
+        <div style="margin-top:16px;border-top:1px solid #d9dee7;padding-top:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+            <div><strong>Tahsilatlar</strong><div class="muted">Farklı para birimleri ve ödeme tipleri ayrı satır olarak kaydedilir.</div></div>
+            <button type="button" class="secondary" onclick="addPaymentRow()">+ Ödeme Ekle</button>
+          </div>
+          <div id="paymentsList" style="margin-top:10px"></div>
+        </div>
+        <div class="moneybox">
+          <div><small>EUR Kalan</small><strong id="balanceEUR">0 EUR</strong></div>
+          <div><small>USD Kalan</small><strong id="balanceUSD">0 USD</strong></div>
+          <div><small>TRY Kalan</small><strong id="balanceTRY">0 TRY</strong></div>
+          <div><small>GBP Kalan</small><strong id="balanceGBP">0 GBP</strong></div>
+        </div>
       </div>
-      <div class="moneybox"><div><small>Toplam Hizmet</small><strong id="totalView">0 EUR</strong></div><div><small>Depozito</small><strong id="depositView">0 EUR</strong></div><div><small>Tahsil Edilen</small><strong id="paidView">0 EUR</strong></div><div><small>Kalan</small><strong id="balanceView">0 EUR</strong></div></div></div>
 
       <div class="card"><h2>7. Kontrol / Hasar / Not</h2><div class="grid"><div class="span2"><label>Çıkış Kondisyon / Hasar</label><textarea id="damageOut"></textarea></div><div class="span2"><label>Dönüş Kondisyon / Hasar</label><textarea id="damageIn"></textarea></div><div class="span4"><label>Operasyon Notu</label><textarea id="notes"></textarea></div></div></div>
       <div class="actions"><button type="button" class="primary" onclick="saveOperation(false)">Kaydet</button><button type="button" class="success" onclick="saveOperation(true)">Kaydet ve Listeye Dön</button><button type="button" class="secondary" onclick="newOperation()">Yeni Kayıt</button><button type="button" class="outline" onclick="window.print()">PDF / Yazdır</button><button type="button" id="deleteOpBtn" class="danger hidden" onclick="deleteOperation()">Kaydı Sil</button></div>
@@ -137,7 +162,7 @@ button,input,select,textarea{font:inherit}.hidden{display:none!important}.app{ma
 </div>
 
 <script>
-const OP_FIELDS=['operationNo','status','customer','staff','startDate','endDate','vehicleId','source','partner','brand','model','year','plate','color','kmOut','kmIn','fuelOut','fuelIn','pickup','dropoff','deliveredBy','receivedBy','deliveryContact','returnContact','driver1','driver1Phone','driver1License','driver1LicenseExp','driver2','driver2Phone','driver2License','driver2LicenseExp','driver3','driver3Phone','driver3License','driver3LicenseExp','wrapNeeded','wrapRemoved','washed','photos','docs','wrapCompany','wrapFee','wrapDate','unwrapDate','wrapNote','currency','rentFee','dropFee','deposit','driverFee','insuranceFee','extraFee','discount','paid','payment','depositStatus','damageOut','damageIn','notes'];
+const OP_FIELDS=['operationNo','status','customer','staff','startDate','endDate','vehicleId','source','partner','brand','model','year','plate','color','kmOut','kmIn','fuelOut','fuelIn','pickup','dropoff','deliveredBy','receivedBy','deliveryContact','returnContact','driver1','driver1Phone','driver1License','driver1LicenseExp','driver2','driver2Phone','driver2License','driver2LicenseExp','driver3','driver3Phone','driver3License','driver3LicenseExp','wrapNeeded','wrapRemoved','washed','photos','docs','wrapCompany','wrapFee','wrapDate','unwrapDate','wrapNote','rentFee','rentCurrency','dropFee','dropCurrency','deposit','depositCurrency','driverFee','driverCurrency','insuranceFee','insuranceCurrency','extraFee','extraCurrency','discount','discountCurrency','wrapCurrency','depositStatus','damageOut','damageIn','notes'];
 let currentUser=sessionStorage.getItem('rallyUser')||''; let currentRole=sessionStorage.getItem('rallyRole')||'Operasyon'; let editingOp=null; let sb=null; let cloudEnabled=false; let opCache=[]; let vehicleCache=[];
 const $=id=>document.getElementById(id); const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 const n=id=>parseFloat($(id).value)||0; const val=id=>{const e=$(id);return e.type==='checkbox'?e.checked:e.value};
@@ -183,11 +208,17 @@ async function getOps(){
         driver2Name:x.driver2_name||'', driver2Phone:x.driver2_phone||'', driver2License:x.driver2_license||'', driver2Expiry:x.driver2_license_expiry||'',
         driver3Name:x.driver3_name||'', driver3Phone:x.driver3_phone||'', driver3License:x.driver3_license||'', driver3Expiry:x.driver3_license_expiry||'',
         wrapRequired:!!x.wrap_required, wrapDescription:x.wrap_description||'', wrapCompany:x.wrap_company||'', wrapCost:Number(x.wrap_cost)||0,
-        currency:x.currency||'EUR', rentalFee:Number(x.rental_fee)||0, dropFee:Number(x.drop_fee)||0,
-        deposit:Number(x.deposit)||0, extraCost:Number(x.extra_cost)||0, total:Number(x.total_amount)||0,
-        collected:Number(x.collected_amount)||0, balance:Number(x.remaining_amount)||0,
-        paymentMethod:x.payment_method||'', insuranceInfo:x.insurance_info||'', damageNotes:x.damage_notes||'',
-        notes:x.operation_notes||'', updatedAt:x.updated_at
+        rentFee:Number(x.rental_fee)||0, rentCurrency:x.rent_currency||x.currency||'EUR',
+        dropFee:Number(x.drop_fee)||0, dropCurrency:x.drop_currency||x.currency||'EUR',
+        deposit:Number(x.deposit)||0, depositCurrency:x.deposit_currency||x.currency||'EUR',
+        wrapFee:Number(x.wrap_cost)||0, wrapCurrency:x.wrap_currency||x.currency||'EUR',
+        driverFee:Number(x.driver_fee)||0, driverCurrency:x.driver_currency||x.currency||'EUR',
+        insuranceFee:Number(x.insurance_fee)||0, insuranceCurrency:x.insurance_currency||x.currency||'EUR',
+        extraFee:Number(x.extra_cost)||0, extraCurrency:x.extra_currency||x.currency||'EUR',
+        discount:Number(x.discount)||0, discountCurrency:x.discount_currency||x.currency||'EUR',
+        payments:Array.isArray(x.payments)?x.payments:[],
+        depositStatus:x.deposit_status||'Alınmadı',
+        damageOut:x.damage_notes||'', notes:x.operation_notes||'', updatedAt:x.updated_at
       }));
       return opCache
     }
@@ -230,12 +261,17 @@ async function saveOpData(d){
       driver1_name:d.driver1Name||null, driver1_phone:d.driver1Phone||null, driver1_license:d.driver1License||null, driver1_license_expiry:d.driver1Expiry||null,
       driver2_name:d.driver2Name||null, driver2_phone:d.driver2Phone||null, driver2_license:d.driver2License||null, driver2_license_expiry:d.driver2Expiry||null,
       driver3_name:d.driver3Name||null, driver3_phone:d.driver3Phone||null, driver3_license:d.driver3License||null, driver3_license_expiry:d.driver3Expiry||null,
-      wrap_required:!!d.wrapRequired, wrap_description:d.wrapDescription||null, wrap_company:d.wrapCompany||null, wrap_cost:Number(d.wrapCost)||0,
-      currency:d.currency||'EUR', rental_fee:Number(d.rentalFee)||0, drop_fee:Number(d.dropFee)||0,
-      deposit:Number(d.deposit)||0, extra_cost:Number(d.extraCost)||0, total_amount:Number(d.total)||0,
-      collected_amount:Number(d.collected)||0, remaining_amount:Number(d.balance)||0,
-      payment_method:d.paymentMethod||null, insurance_info:d.insuranceInfo||null, damage_notes:d.damageNotes||null,
-      operation_notes:d.notes||null, created_by:d.staff||currentUser||null, updated_by:currentUser||null,
+      wrap_required:!!d.wrapNeeded, wrap_company:d.wrapCompany||null, wrap_cost:Number(d.wrapFee)||0, wrap_currency:d.wrapCurrency||'EUR',
+      rental_fee:Number(d.rentFee)||0, rent_currency:d.rentCurrency||'EUR',
+      drop_fee:Number(d.dropFee)||0, drop_currency:d.dropCurrency||'EUR',
+      deposit:Number(d.deposit)||0, deposit_currency:d.depositCurrency||'EUR',
+      driver_fee:Number(d.driverFee)||0, driver_currency:d.driverCurrency||'EUR',
+      insurance_fee:Number(d.insuranceFee)||0, insurance_currency:d.insuranceCurrency||'EUR',
+      extra_cost:Number(d.extraFee)||0, extra_currency:d.extraCurrency||'EUR',
+      discount:Number(d.discount)||0, discount_currency:d.discountCurrency||'EUR',
+      payments:d.payments||[], deposit_status:d.depositStatus||'Alınmadı',
+      total_amount:0, collected_amount:0, remaining_amount:0, currency:'MULTI',
+      damage_notes:d.damageOut||null, operation_notes:d.notes||null, created_by:d.staff||currentUser||null, updated_by:currentUser||null,
       updated_at:new Date().toISOString()
     };
     let q;
@@ -288,19 +324,24 @@ async function loginUser(){
 }
 async function logout(){try{if(sb)await sb.auth.signOut()}catch(e){} sessionStorage.clear();currentUser='';$('loginPassword').value='';$('login').classList.remove('hidden')}
 function showView(v){['dashboard','operation','vehicles','list','staff','settings'].forEach(x=>{$('view-'+x).classList.toggle('hidden',x!==v);$('nav-'+x).classList.toggle('active',x===v)});if(v==='dashboard')renderDashboard();if(v==='vehicles')renderVehicles();if(v==='list')renderOperations();if(v==='staff')renderStaff()}
-async function refreshAll(){await getVehicles();await getOps();populateVehicleSelects();renderDashboard();renderVehicles();renderOperations();renderStaff();refreshMoney()}
+async function refreshAll(){await getVehicles();await getOps();populateVehicleSelects();renderDashboard();renderVehicles();renderOperations();renderStaff();refreshMoney();if($('paymentsList')&&!$('paymentsList').children.length)addPaymentRow()}
 function populateVehicleSelects(){const cur=$('vehicleId').value;$('vehicleId').innerHTML='<option value="">Araç seçin...</option>'+vehicleCache.filter(v=>v.status!=='Pasif').map(v=>`<option value="${esc(v.id)}">${esc([v.brand,v.model,v.year,v.plate].filter(Boolean).join(' • '))}</option>`).join('');$('vehicleId').value=cur;const f=$('vehicleFilter').value;$('vehicleFilter').innerHTML='<option value="">Tüm Araçlar</option>'+vehicleCache.map(v=>`<option value="${esc(v.id)}">${esc([v.brand,v.model,v.plate].filter(Boolean).join(' • '))}</option>`).join('');$('vehicleFilter').value=f}
 function vehicleSelected(){const v=vehicleCache.find(x=>x.id===$('vehicleId').value);if(!v)return;['brand','model','year','plate','color','source','partner'].forEach(k=>$(k).value=v[k]??'')}
-function refreshMoney(){const total=n('rentFee')+n('dropFee')+n('wrapFee')+n('driverFee')+n('insuranceFee')+n('extraFee')-n('discount'),bal=Math.max(total-n('paid'),0),c=$('currency').value||'EUR';$('totalView').textContent=money(total,c);$('depositView').textContent=money(n('deposit'),c);$('paidView').textContent=money(n('paid'),c);$('balanceView').textContent=money(bal,c);$('kmTotal').value=Math.max(n('kmIn')-n('kmOut'),0)||''}
+function getPayments(){return [...document.querySelectorAll('#paymentsList .payment-row')].map(r=>({date:r.querySelector('.pDate').value,amount:Number(r.querySelector('.pAmount').value)||0,currency:r.querySelector('.pCurrency').value,method:r.querySelector('.pMethod').value,note:r.querySelector('.pNote').value})).filter(x=>x.amount>0)}
+function addPaymentRow(p={}){const r=document.createElement('div');r.className='payment-row';r.innerHTML=`<div><label>Tarih</label><input class="pDate" type="date" value="${p.date||''}"></div><div><label>Tutar</label><input class="pAmount" type="number" min="0" step="0.01" value="${p.amount||''}"></div><div><label>Döviz</label><select class="pCurrency">${['EUR','USD','TRY','GBP'].map(c=>`<option ${c===(p.currency||'EUR')?'selected':''}>${c}</option>`).join('')}</select></div><div><label>Ödeme</label><select class="pMethod">${['Nakit','Havale','Kredi Kartı / POS','Diğer'].map(m=>`<option ${m===(p.method||'')?'selected':''}>${m}</option>`).join('')}</select></div><div class="payment-note"><label>Not</label><input class="pNote" value="${esc(p.note||'')}"></div><div><button type="button" class="danger" onclick="this.closest('.payment-row').remove();refreshMoney()">Sil</button></div>`;$('paymentsList').appendChild(r);r.querySelectorAll('input,select').forEach(e=>e.addEventListener('input',refreshMoney));refreshMoney()}
+function chargeTotals(){const t={EUR:0,USD:0,TRY:0,GBP:0};[['rentFee','rentCurrency',1],['dropFee','dropCurrency',1],['deposit','depositCurrency',1],['driverFee','driverCurrency',1],['insuranceFee','insuranceCurrency',1],['extraFee','extraCurrency',1],['wrapFee','wrapCurrency',1],['discount','discountCurrency',-1]].forEach(([a,c,s])=>{const cur=$(c).value||'EUR';t[cur]=(t[cur]||0)+(Number($(a).value)||0)*s});return t}
+function paidTotals(){const t={EUR:0,USD:0,TRY:0,GBP:0};getPayments().forEach(p=>t[p.currency]=(t[p.currency]||0)+p.amount);return t}
+function balanceTotals(){const c=chargeTotals(),p=paidTotals(),b={};['EUR','USD','TRY','GBP'].forEach(x=>b[x]=(c[x]||0)-(p[x]||0));return b}
+function refreshMoney(){const b=balanceTotals();['EUR','USD','TRY','GBP'].forEach(c=>{const e=$('balance'+c);if(e)e.textContent=money(b[c],c)});$('kmTotal').value=Math.max(n('kmIn')-n('kmOut'),0)||''}
 document.querySelectorAll('#operationForm input,#operationForm select,#operationForm textarea').forEach(e=>e.addEventListener('input',refreshMoney));
-function collectOp(){const d={id:editingOp||uuid(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),createdBy:currentUser};OP_FIELDS.forEach(k=>d[k]=val(k));const old=opCache.find(x=>x.id===editingOp);if(old){d.createdAt=old.createdAt||d.createdAt;d.createdBy=old.createdBy||currentUser}d.staff=currentUser;d.total=n('rentFee')+n('dropFee')+n('wrapFee')+n('driverFee')+n('insuranceFee')+n('extraFee')-n('discount');d.balance=Math.max(d.total-n('paid'),0);return d}
+function collectOp(){const d={id:editingOp||uuid(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),createdBy:currentUser};OP_FIELDS.forEach(k=>d[k]=val(k));const old=opCache.find(x=>x.id===editingOp);if(old){d.createdAt=old.createdAt||d.createdAt;d.createdBy=old.createdBy||currentUser}d.staff=currentUser;d.payments=getPayments();d.balances=balanceTotals();return d}
 async function saveOperation(goList){if(!currentUser)return alert('Önce giriş yapın.');if(!$('operationNo').value.trim())return alert('Operasyon No girin.');if(!$('vehicleId').value&&!$('model').value.trim()&&!$('plate').value.trim())return alert('Araç seçin veya araç bilgisini girin.');const d=collectOp();try{await saveOpData(d);editingOp=d.id;$('deleteOpBtn').classList.remove('hidden');await refreshAll();alert('Operasyon kaydedildi.');if(goList)showView('list')}catch(e){alert('Kayıt hatası: '+e.message)}}
-function newOperation(){editingOp=null;$('operationForm').reset();$('staff').value=currentUser;$('currency').value='EUR';['wrapFee','rentFee','dropFee','deposit','driverFee','insuranceFee','extraFee','discount','paid'].forEach(id=>$(id).value=0);$('deleteOpBtn').classList.add('hidden');refreshMoney();showView('operation')}
-function openOperation(id){const d=opCache.find(x=>x.id===id);if(!d)return;editingOp=id;OP_FIELDS.forEach(k=>{const e=$(k);if(!e)return;if(e.type==='checkbox')e.checked=!!d[k];else e.value=d[k]??''});$('staff').value=currentUser;$('deleteOpBtn').classList.remove('hidden');refreshMoney();showView('operation');window.scrollTo({top:0,behavior:'smooth'})}
+function newOperation(){editingOp=null;$('operationForm').reset();$('staff').value=currentUser;['rentCurrency','dropCurrency','depositCurrency','driverCurrency','insuranceCurrency','extraCurrency','discountCurrency','wrapCurrency'].forEach(id=>$(id).value='EUR');['wrapFee','rentFee','dropFee','deposit','driverFee','insuranceFee','extraFee','discount'].forEach(id=>$(id).value=0);$('paymentsList').innerHTML='';addPaymentRow();$('deleteOpBtn').classList.add('hidden');refreshMoney();showView('operation')}
+function openOperation(id){const d=opCache.find(x=>x.id===id);if(!d)return;editingOp=id;OP_FIELDS.forEach(k=>{const e=$(k);if(!e)return;if(e.type==='checkbox')e.checked=!!d[k];else e.value=d[k]??''});$('staff').value=currentUser;$('paymentsList').innerHTML='';(d.payments||[]).forEach(addPaymentRow);if(!(d.payments||[]).length)addPaymentRow();$('deleteOpBtn').classList.remove('hidden');refreshMoney();showView('operation');window.scrollTo({top:0,behavior:'smooth'})}
 async function deleteOperation(){if(!editingOp||!confirm('Bu operasyon kaydı silinsin mi?'))return;try{await deleteOpData(editingOp);newOperation();await refreshAll();showView('list')}catch(e){alert(e.message)}}
 function statusDot(s){return ['Tamamlandı','İade Alındı'].includes(s)?'st-green':['İptal'].includes(s)?'st-red':'st-amber'}
-function renderDashboard(){const all=opCache;$('kAll').textContent=all.length;$('kDemand').textContent=all.filter(x=>['Talep Var','Netleşecek'].includes(x.status)).length;$('kPrep').textContent=all.filter(x=>['Onaylandı','Araç Hazırlanıyor','Kaplamada','Teslime Hazır'].includes(x.status)).length;$('kOut').textContent=all.filter(x=>x.status==='Teslim Edildi').length;$('kDone').textContent=all.filter(x=>['İade Alındı','Tamamlandı'].includes(x.status)).length;$('kVehicles').textContent=vehicleCache.length;$('dashBody').innerHTML=all.slice(0,30).map(d=>`<tr><td><strong>${esc(d.operationNo)}</strong></td><td><span class="statusdot ${statusDot(d.status)}"></span>${esc(d.status)}</td><td>${esc([d.brand,d.model,d.year].filter(Boolean).join(' '))}</td><td>${esc(d.plate||'-')}</td><td>${fmt(d.startDate)}</td><td>${fmt(d.endDate)}</td><td>${esc(d.driver1||'-')}</td><td>${d.wrapNeeded?'Evet':'Hayır'}</td><td>${money(d.total,d.currency)}</td><td>${money(d.balance,d.currency)}</td><td>${esc(d.staff||'-')}</td><td><button class="secondary" onclick="openOperation('${d.id}')">Aç</button></td></tr>`).join('');$('dashEmpty').style.display=all.length?'none':'block'}
-function renderOperations(){const q=($('searchBox').value||'').toLowerCase(),sf=$('statusFilter').value,vf=$('vehicleFilter').value;const a=opCache.filter(d=>{const hay=[d.operationNo,d.customer,d.brand,d.model,d.plate,d.driver1,d.driver2,d.driver3,d.pickup,d.dropoff,d.staff].join(' ').toLowerCase();return(!q||hay.includes(q))&&(!sf||d.status===sf)&&(!vf||d.vehicleId===vf)});$('opListBody').innerHTML=a.map(d=>`<tr><td><strong>${esc(d.operationNo)}</strong></td><td>${esc(d.status)}</td><td>${esc([d.brand,d.model,d.year].filter(Boolean).join(' '))}</td><td>${esc(d.plate||'-')}</td><td>${fmt(d.startDate)}</td><td>${fmt(d.endDate)}</td><td>${esc(d.driver1||'-')}</td><td>${esc(d.driver2||'-')}</td><td>${esc(d.driver3||'-')}</td><td>${esc(d.pickup||'-')} → ${esc(d.dropoff||'-')}</td><td>${d.wrapNeeded?money(d.wrapFee,d.currency):'Hayır'}</td><td>${money(d.total,d.currency)}</td><td>${money(d.balance,d.currency)}</td><td>${esc(d.staff||'-')}</td><td><button class="secondary" onclick="openOperation('${d.id}')">Aç</button></td></tr>`).join('');$('opEmpty').style.display=a.length?'none':'block'}
+function renderDashboard(){const all=opCache;$('kAll').textContent=all.length;$('kDemand').textContent=all.filter(x=>['Talep Var','Netleşecek'].includes(x.status)).length;$('kPrep').textContent=all.filter(x=>['Onaylandı','Araç Hazırlanıyor','Kaplamada','Teslime Hazır'].includes(x.status)).length;$('kOut').textContent=all.filter(x=>x.status==='Teslim Edildi').length;$('kDone').textContent=all.filter(x=>['İade Alındı','Tamamlandı'].includes(x.status)).length;$('kVehicles').textContent=vehicleCache.length;$('dashBody').innerHTML=all.slice(0,30).map(d=>`<tr><td><strong>${esc(d.operationNo)}</strong></td><td><span class="statusdot ${statusDot(d.status)}"></span>${esc(d.status)}</td><td>${esc([d.brand,d.model,d.year].filter(Boolean).join(' '))}</td><td>${esc(d.plate||'-')}</td><td>${fmt(d.startDate)}</td><td>${fmt(d.endDate)}</td><td>${esc(d.driver1||'-')}</td><td>${d.wrapNeeded?'Evet':'Hayır'}</td><td>${'-'}</td><td>${['EUR','USD','TRY','GBP'].map(c=>{const v=(d.balances||{})[c];return v?money(v,c):''}).filter(Boolean).join('<br>')||'-'}</td><td>${esc(d.staff||'-')}</td><td><button class="secondary" onclick="openOperation('${d.id}')">Aç</button></td></tr>`).join('');$('dashEmpty').style.display=all.length?'none':'block'}
+function renderOperations(){const q=($('searchBox').value||'').toLowerCase(),sf=$('statusFilter').value,vf=$('vehicleFilter').value;const a=opCache.filter(d=>{const hay=[d.operationNo,d.customer,d.brand,d.model,d.plate,d.driver1,d.driver2,d.driver3,d.pickup,d.dropoff,d.staff].join(' ').toLowerCase();return(!q||hay.includes(q))&&(!sf||d.status===sf)&&(!vf||d.vehicleId===vf)});$('opListBody').innerHTML=a.map(d=>`<tr><td><strong>${esc(d.operationNo)}</strong></td><td>${esc(d.status)}</td><td>${esc([d.brand,d.model,d.year].filter(Boolean).join(' '))}</td><td>${esc(d.plate||'-')}</td><td>${fmt(d.startDate)}</td><td>${fmt(d.endDate)}</td><td>${esc(d.driver1||'-')}</td><td>${esc(d.driver2||'-')}</td><td>${esc(d.driver3||'-')}</td><td>${esc(d.pickup||'-')} → ${esc(d.dropoff||'-')}</td><td>${d.wrapNeeded?money(d.wrapFee,d.currency):'Hayır'}</td><td>${'-'}</td><td>${['EUR','USD','TRY','GBP'].map(c=>{const v=(d.balances||{})[c];return v?money(v,c):''}).filter(Boolean).join('<br>')||'-'}</td><td>${esc(d.staff||'-')}</td><td><button class="secondary" onclick="openOperation('${d.id}')">Aç</button></td></tr>`).join('');$('opEmpty').style.display=a.length?'none':'block'}
 async function saveVehicle(){const id=$('vehicleEditId').value||uuid();const v={id,brand:$('vBrand').value.trim(),model:$('vModel').value.trim(),year:$('vYear').value,plate:$('vPlate').value.trim(),color:$('vColor').value.trim(),source:$('vSource').value,partner:$('vPartner').value.trim(),status:$('vStatus').value,notes:$('vNotes').value.trim(),updatedAt:new Date().toISOString()};if(!v.brand&&!v.model&&!v.plate)return alert('Araç için marka, model veya plaka bilgisi girin.');try{await saveVehicleData(v);clearVehicleForm();await refreshAll()}catch(e){alert('Araç kaydedilemedi: '+e.message)}}
 function editVehicle(id){const v=vehicleCache.find(x=>x.id===id);if(!v)return;$('vehicleEditId').value=id;$('vBrand').value=v.brand||'';$('vModel').value=v.model||'';$('vYear').value=v.year||'';$('vPlate').value=v.plate||'';$('vColor').value=v.color||'';$('vSource').value=v.source||'Özmal';$('vPartner').value=v.partner||'';$('vStatus').value=v.status||'Aktif';$('vNotes').value=v.notes||'';window.scrollTo({top:0,behavior:'smooth'})}
 async function removeVehicle(id){if(opCache.some(o=>o.vehicleId===id))return alert('Bu araç operasyon kayıtlarında kullanılıyor. Önce operasyon bağlantısını kaldırın.');if(!confirm('Araç kartı silinsin mi?'))return;try{await deleteVehicleData(id);await refreshAll()}catch(e){alert(e.message)}}
