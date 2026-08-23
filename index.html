@@ -146,7 +146,7 @@ button,input,select,textarea{font:inherit}.hidden{display:none!important}.app{ma
 
   <section id="view-settings" class="hidden">
     <div class="card"><h2>Ortak Bulut Veritabanı</h2><div class="setupgrid">
-      <div><div class="note"><strong>Bulut bağlantısı otomatik.</strong><br>Bu sürüm Supabase projesine doğrudan bağlanır. Kullanıcıların Project URL veya Publishable Key girmesine gerek yoktur.</div><button class="secondary" onclick="testCloud()">Bağlantıyı Test Et</button><div id="cloudMsg" class="note">Ortak bulut bağlantısı uygulama açılışında otomatik başlatılır.</div></div>
+      <div><div class="note"><strong>Bulut bağlantısı otomatik.</strong><br>Bu sürüm Mayscar Rally Supabase projesine doğrudan bağlanır. Kullanıcıların Project URL veya Publishable Key girmesine gerek yoktur.</div><button class="secondary" onclick="testCloud()">Bağlantıyı Test Et</button><div id="cloudMsg" class="note">Ortak bulut bağlantısı uygulama açılışında otomatik başlatılır.</div></div>
       <div><div class="note"><strong>Nasıl çalışacak?</strong><br>Supabase projesi oluşturulduktan sonra aşağıdaki SQL bir kez çalıştırılır. URL ve Publishable Key buraya girilir. Sonra araçlar ve operasyonlar ortak veritabanından okunur.</div><button class="secondary" onclick="copySQL()">Kurulum SQL'ini Kopyala</button><div id="sqlBox" class="codebox"></div></div>
     </div></div>
     <div class="card"><h2>Yerel Veriyi Buluta Aktar</h2><p class="tiny">Bulut bağlantısı kurulduktan sonra bu cihazdaki araç kartlarını ve operasyonları Supabase'e gönderebilirsiniz.</p><button class="success" onclick="migrateLocalToCloud()">Yerel Kayıtları Buluta Aktar</button></div>
@@ -242,10 +242,11 @@ function initCloud(){
     cloudEnabled=true;
   }catch(e){
     console.error('Bulut bağlantısı başlatılamadı:',e);
-    sb=null; cloudEnabled=false;
+    sb=null;
+    cloudEnabled=false;
   }
   updateStorageBadge();
-}}
+}
 function updateStorageBadge(){$('storageBadge').textContent=cloudEnabled?'Ortak Bulut':'Yerel Mod';$('storageBadge').className='badge '+(cloudEnabled?'cloud':'local')}
 async function getVehicles(){
   if(cloudEnabled){
@@ -460,6 +461,47 @@ function renderStaff(){const s=localStaff();$('staffBody').innerHTML=Object.entr
 function removeStaff(name){if(!requireManager('Personel silme'))return;if(name===currentUser)return alert('Aktif kullanıcıyı silemezsiniz.');if(!confirm(name+' silinsin mi?'))return;const s=localStaff();delete s[name];setLocalStaff(s);renderStaff()}
 function exportBackup(){const payload={exportedAt:new Date().toISOString(),vehicles:vehicleCache,operations:opCache,staff:localStaff()};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mayscar_rally_v3_yedek.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
 function saveCloudConfig(){alert('V10’da bulut bağlantısı otomatik yapılandırılmıştır.');}
+async function testCloud(){
+  if(!sb||!cloudEnabled){$('cloudMsg').textContent='Bulut bağlantısı başlatılamadı.';return}
+  $('cloudMsg').textContent='Bağlantı test ediliyor...';
+  try{
+    const {error}=await sb.from('vehicles').select('id').limit(1);
+    if(error)throw error;
+    $('cloudMsg').textContent='✓ Ortak bulut bağlantısı çalışıyor.';
+  }catch(e){
+    $('cloudMsg').textContent='Bağlantı hatası: '+e.message;
+  }
+}
+function disableCloud(){alert('V10’da ortak bulut bağlantısı sabittir.');}
+function copySQL(){navigator.clipboard?.writeText(SQL).then(()=>alert('Kurulum SQL kopyalandı.')).catch(()=>alert('SQL kutusundan metni seçip kopyalayın.'))}
+async function migrateLocalToCloud(){if(!requireManager('Yerel veriyi buluta aktarma'))return;if(!cloudEnabled)return alert('Önce Supabase bağlantısını kurun.');if(!confirm('Bu cihazdaki yerel araçlar ve operasyonlar buluta aktarılsın mı?'))return;try{for(const v of localVehicles())await saveVehicleData(v);for(const d of localOps())await saveOpData(d);await refreshAll();alert('Yerel kayıtlar buluta aktarıldı.')}catch(e){alert('Aktarım hatası: '+e.message)}}
+
+async function boot(){
+  seed(); initCloud();
+  if(sb){
+    try{
+      const {data}=await sb.auth.getSession();
+      if(data?.session?.user){
+        currentUser=data.session.user.email||'Kullanıcı';
+        await resolveUserRole(data.session.user);
+        sessionStorage.setItem('rallyUser',currentUser);
+      }else{
+        currentUser=''; currentRole='Operasyon';
+        sessionStorage.removeItem('rallyUser'); sessionStorage.removeItem('rallyRole');
+      }
+    }catch(e){
+      console.warn(e);
+      currentUser=''; currentRole='Operasyon';
+    }
+  }
+  if(currentUser){
+    $('login').classList.add('hidden');
+    $('staff').value=currentUser;
+    applyPermissions();
+  }else $('login').classList.remove('hidden');
+  await refreshAll();
+  applyPermissions();
+}
 boot();
 </script>
 </body>
