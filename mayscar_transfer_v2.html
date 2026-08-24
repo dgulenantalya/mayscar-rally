@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Mayscar Transfer Operasyon</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--text:#171717;--muted:#667085;--line:#e4e7ec;--dark:#111827;--green:#067647;--red:#b42318;--amber:#b54708;--blue:#175cd3}
+*{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text)}
+.app{max-width:900px;margin:auto;padding:12px} .top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px}
+h1{font-size:21px;margin:0} .muted{color:var(--muted);font-size:12px} button{border:0;border-radius:10px;padding:11px 13px;font-weight:750}
+.primary{background:var(--dark);color:#fff} .secondary{background:#eaecf0} .danger{background:#fee4e2;color:var(--red)}
+.tabs{display:flex;gap:7px;overflow:auto;padding-bottom:10px} .tabs button{white-space:nowrap;background:#fff;border:1px solid var(--line)} .tabs button.active{background:var(--dark);color:#fff}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px} .kpi{background:#fff;border:1px solid var(--line);border-radius:13px;padding:11px} .kpi small{display:block;color:var(--muted)} .kpi strong{font-size:22px}
+.card{background:#fff;border:1px solid var(--line);border-radius:15px;padding:13px;margin-bottom:10px} .route{font-weight:800;margin:5px 0} .meta{font-size:13px;line-height:1.55}
+.pill{display:inline-block;padding:5px 8px;border-radius:999px;background:#f2f4f7;font-size:11px;font-weight:750;margin-right:4px} .warn{background:#fff4e5;color:#93370d} .done{background:#ecfdf3;color:#067647}
+.actions{display:flex;gap:7px;margin-top:10px;flex-wrap:wrap} .empty{text-align:center;padding:30px;color:var(--muted)}
+.fab{position:fixed;right:18px;bottom:22px;border-radius:999px;background:var(--dark);color:#fff;box-shadow:0 5px 20px #0003;z-index:10}
+.modal{position:fixed;inset:0;background:#0008;z-index:20;display:none;overflow:auto;padding:16px} .modal.open{display:block} .sheet{max-width:700px;margin:20px auto;background:#fff;border-radius:18px;padding:16px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px} label{display:block;font-size:12px;font-weight:750;margin-bottom:5px} input,select,textarea{width:100%;padding:11px;border:1px solid #d0d5dd;border-radius:9px;font:inherit} textarea{min-height:80px}
+.span2{grid-column:span 2} .sheethead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+@media(max-width:620px){.kpis{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr}.span2{grid-column:span 1}}
+
+.login{position:fixed;inset:0;z-index:100;background:rgba(17,24,39,.82);display:flex;align-items:center;justify-content:center;padding:18px}
+.login.hidden{display:none}.loginbox{width:min(420px,100%);background:#fff;border-radius:18px;padding:20px}
+.loginbox h2{margin:0 0 5px}.loginbox p{margin:0 0 15px;color:var(--muted);font-size:12px}
+.userline{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.badge{background:#ecfdf3;color:#067647;border-radius:999px;padding:6px 9px;font-size:11px;font-weight:750}
+</style>
+</head>
+<body>
+<div id="login" class="login">
+  <div class="loginbox">
+    <h2>Mayscar Transfer</h2>
+    <p>Personel ortak operasyon ekranı</p>
+    <label>E-posta</label><input id="loginEmail" type="email" autocomplete="username" placeholder="personel@mayscar.com">
+    <label style="margin-top:10px">Şifre</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="Şifreniz">
+    <div id="loginMsg" class="muted" style="margin:10px 0">Rally sistemindeki Supabase kullanıcı hesabınızla giriş yapın.</div>
+    <button class="primary" style="width:100%" onclick="loginUser()">Giriş Yap</button>
+  </div>
+</div>
+<div class="app">
+ <div class="top"><div><h1>MAYSCAR TRANSFER</h1><div class="muted">Ortak Mobil Operasyon</div></div><div class="userline"><span id="userBadge" class="badge">-</span><button class="secondary" onclick="loadTransfers()">Yenile</button><button class="secondary" onclick="logoutUser()">Çıkış</button></div></div>
+ <div class="kpis"><div class="kpi"><small>Bugün</small><strong id="kToday">0</strong></div><div class="kpi"><small>Yarın</small><strong id="kTomorrow">0</strong></div><div class="kpi"><small>Yaklaşan</small><strong id="kUpcoming">0</strong></div><div class="kpi"><small>Eksik Bilgi</small><strong id="kMissing">0</strong></div></div>
+ <div class="tabs">
+  <button class="active" data-filter="today" onclick="setFilter(this)">Bugün</button>
+  <button data-filter="tomorrow" onclick="setFilter(this)">Yarın</button>
+  <button data-filter="upcoming" onclick="setFilter(this)">Yaklaşan</button>
+  <button data-filter="missing" onclick="setFilter(this)">Eksik Bilgi</button>
+  <button data-filter="all" onclick="setFilter(this)">Tümü</button>
+  <button data-filter="done" onclick="setFilter(this)">Tamamlanan</button>
+ </div>
+ <div id="list"></div>
+</div>
+<button class="fab" onclick="openForm()">＋ Yeni Transfer</button>
+
+<div id="modal" class="modal"><div class="sheet">
+ <div class="sheethead"><strong id="formTitle">Yeni Transfer</strong><button class="secondary" onclick="closeForm()">Kapat</button></div>
+ <div class="grid">
+  <div><label>Tarih *</label><input id="tarih" type="date"></div><div><label>Saat</label><input id="saat" type="time"></div>
+  <div><label>Transfer Tipi</label><select id="transfer_tipi"><option>Transfer</option><option>Arrival</option><option>Departure</option><option>Şehirlerarası Transfer</option></select></div>
+  <div><label>Durum</label><select id="durum"><option>Planlandı</option><option>Saat Teyit Bekliyor</option><option>Araç Atandı</option><option>Yolda</option><option>Tamamlandı</option><option>İptal</option></select></div>
+  <div><label>Misafir</label><input id="misafir_adi"></div><div><label>Telefon</label><input id="telefon" type="tel"></div>
+  <div><label>Pax</label><input id="pax" type="number" min="1"></div><div><label>Araç</label><input id="arac" placeholder="Mercedes S-Class W223"></div>
+  <div><label>Plaka</label><input id="plaka"></div><div><label>Şoför</label><input id="sofor_adi"></div>
+  <div><label>Şoför Telefon</label><input id="sofor_telefon" type="tel"></div><div><label>Uçuş Kodu</label><input id="ucus_kodu"></div>
+  <div class="span2"><label>Alış Yeri</label><input id="alis_yeri"></div><div class="span2"><label>Bırakış Yeri</label><input id="birakis_yeri"></div>
+  <div><label>Tedarikçi</label><input id="tedarikci"></div><div><label>Tutar</label><input id="tutar" type="number" step="0.01"></div>
+  <div><label>Para Birimi</label><select id="para_birimi"><option value="">-</option><option>EUR</option><option>USD</option><option>TRY</option><option>GBP</option></select></div>
+  <div><label>KDV</label><input id="kdv_durumu" placeholder="KDV Dahil"></div>
+  <div><label>Ödeme</label><select id="odeme_durumu"><option>Bekliyor</option><option>Kısmi</option><option>Ödendi</option></select></div>
+  <div class="span2"><label>Operasyon Notu</label><textarea id="notlar"></textarea></div>
+ </div>
+ <div class="actions"><button class="primary" onclick="saveTransfer()">Kaydet</button><button id="deleteBtn" class="danger" style="display:none" onclick="deleteTransfer()">Sil</button></div>
+</div></div>
+
+<script>
+const SUPABASE_URL='https://qlsdkcqxyyxvahwfjmiv.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY='sb_publishable_2MLIwLfrIKiP6-JNZP7peA_OZah3JHB';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+let rows=[],filter='today',editing=null;
+const fields=['tarih','saat','transfer_tipi','durum','misafir_adi','telefon','pax','arac','plaka','sofor_adi','sofor_telefon','alis_yeri','birakis_yeri','ucus_kodu','tedarikci','tutar','para_birimi','kdv_durumu','odeme_durumu','notlar'];
+const $=x=>document.getElementById(x), esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+const localDate=d=>{const x=new Date();x.setHours(0,0,0,0);x.setDate(x.getDate()+d);return x.toLocaleDateString('en-CA')};
+function missing(r){return !r.saat||!r.arac||!r.alis_yeri||!r.birakis_yeri||!r.sofor_adi||!r.plaka}
+async function loadTransfers(){const {data,error}=await sb.from('transferler').select('*').order('tarih').order('saat');if(error){alert('Veri okunamadı: '+error.message);return}rows=data||[];render()}
+function setFilter(b){filter=b.dataset.filter;document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active',x===b));render()}
+function render(){const t=localDate(0),tm=localDate(1);$('kToday').textContent=rows.filter(r=>r.tarih===t&&!['Tamamlandı','İptal'].includes(r.durum)).length;$('kTomorrow').textContent=rows.filter(r=>r.tarih===tm&&!['Tamamlandı','İptal'].includes(r.durum)).length;$('kUpcoming').textContent=rows.filter(r=>r.tarih>tm&&!['Tamamlandı','İptal'].includes(r.durum)).length;$('kMissing').textContent=rows.filter(r=>missing(r)&&!['Tamamlandı','İptal'].includes(r.durum)).length;
+let a=rows.filter(r=>filter==='all'||filter==='today'&&r.tarih===t||filter==='tomorrow'&&r.tarih===tm||filter==='upcoming'&&r.tarih>tm&&!['Tamamlandı','İptal'].includes(r.durum)||filter==='missing'&&missing(r)&&!['Tamamlandı','İptal'].includes(r.durum)||filter==='done'&&r.durum==='Tamamlandı');
+$('list').innerHTML=a.length?a.map(r=>`<div class="card"><div><span class="pill ${missing(r)?'warn':''}">${esc(r.durum||'Planlandı')}</span><span class="pill">${esc(r.transfer_tipi||'Transfer')}</span></div><div class="route">${esc(r.alis_yeri||'Alış yeri eksik')} → ${esc(r.birakis_yeri||'Bırakış yeri eksik')}</div><div class="meta"><strong>${esc(r.tarih)} • ${esc((r.saat||'').slice(0,5)||'Saat bekliyor')}</strong><br>${esc(r.misafir_adi||'Misafir bilgisi yok')}${r.pax?' • '+r.pax+' pax':''}${r.telefon?' • '+esc(r.telefon):''}<br>${esc(r.arac||'Araç bekliyor')}${r.plaka?' • '+esc(r.plaka):''} • Şoför: ${esc(r.sofor_adi||'Bekliyor')}${r.tedarikci?'<br>Tedarikçi: '+esc(r.tedarikci):''}${r.tutar?'<br><strong>'+Number(r.tutar).toLocaleString('tr-TR')+' '+esc(r.para_birimi||'')+'</strong> '+esc(r.kdv_durumu||''):''}${r.ucus_kodu?'<br>Uçuş: '+esc(r.ucus_kodu):''}${r.notlar?'<br>Not: '+esc(r.notlar):''}</div><div class="actions"><button class="secondary" onclick="openForm(${r.id})">Düzenle</button>${r.telefon?`<button class="secondary" onclick="location.href='tel:${esc(r.telefon)}'">Ara</button>`:''}</div></div>`).join(''):'<div class="empty">Bu bölümde transfer yok.</div>'}
+function openForm(id=null){editing=id;const r=rows.find(x=>x.id===id)||{};fields.forEach(f=>{$(f).value=r[f]??''});if(!id){$('durum').value='Planlandı';$('odeme_durumu').value='Bekliyor';$('transfer_tipi').value='Transfer'}$('formTitle').textContent=id?'Transfer Düzenle':'Yeni Transfer';$('deleteBtn').style.display=id?'inline-block':'none';$('modal').classList.add('open')}
+function closeForm(){$('modal').classList.remove('open');editing=null}
+async function saveTransfer(){if(!$('tarih').value)return alert('Tarih girin.');let row={};fields.forEach(f=>row[f]=$(f).value||null);row.pax=row.pax?Number(row.pax):null;row.tutar=row.tutar?Number(row.tutar):null;row.updated_at=new Date().toISOString();let q=editing?sb.from('transferler').update(row).eq('id',editing):sb.from('transferler').insert(row);const {error}=await q;if(error)return alert('Kayıt hatası: '+error.message);closeForm();await loadTransfers()}
+async function deleteTransfer(){if(!editing||!confirm('Bu transfer silinsin mi?'))return;const {error}=await sb.from('transferler').delete().eq('id',editing);if(error)return alert(error.message);closeForm();await loadTransfers()}
+
+async function loginUser(){
+  const email=$('loginEmail').value.trim(),password=$('loginPassword').value;
+  if(!email||!password){$('loginMsg').textContent='E-posta ve şifre girin.';return}
+  const {data,error}=await sb.auth.signInWithPassword({email,password});
+  if(error){$('loginMsg').textContent='Giriş yapılamadı: '+error.message;return}
+  $('userBadge').textContent=data.user?.email||email;
+  $('login').classList.add('hidden');
+  await loadTransfers();
+}
+async function logoutUser(){
+  await sb.auth.signOut();
+  $('loginPassword').value='';
+  $('userBadge').textContent='-';
+  $('login').classList.remove('hidden');
+}
+async function boot(){
+  const {data}=await sb.auth.getSession();
+  const session=data?.session;
+  if(session){
+    $('userBadge').textContent=session.user?.email||'Kullanıcı';
+    $('login').classList.add('hidden');
+    await loadTransfers();
+  }else{
+    $('login').classList.remove('hidden');
+  }
+}
+boot();
+
+</script>
+</body></html>
